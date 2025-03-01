@@ -1,3 +1,4 @@
+# Math
 import numpy as np
 import scipy as sp
 import matplotlib.pyplot as plt
@@ -6,11 +7,24 @@ import random
 from scipy.stats import norm
 import scipy.optimize as optimize
 import time
+
+# Ez parallelization
 from joblib import Parallel, delayed
 
+# File Handling
+from sys import getsizeof
+import _pickle as pickle
+# Alternatively use JSON which will be human readable
+# import json
+
 # Custom imports
+from global_cache import Global_Cache
 import base_from_gen as bg
 import pricing_func as pf
+from path_datatype import Path
+
+# C magic?
+#from numba import jit
 
 """
 The Goal of this File is to generate a bunch of sample paths for the value of our tracked market through 30 years
@@ -18,6 +32,8 @@ The Goal of this File is to generate a bunch of sample paths for the value of ou
 I'm setting the preliminary goal of around 1600 paths per hour since this gives us a reasonably fast
 rate (We can get a testable set in about an hour, and a set that should be large enough to be useable over 
 a day 24*1600 = 38400 paths)
+
+At the latest point I ran it for 1600 paths in 3926 seconds ie, 65 minutes. 
 
 ----------- What are we finding and saving -----------
 We need to at all times know the value of our hedging instruments, these will be (as I understand it)
@@ -82,21 +98,20 @@ params["theta"] = theta = r0*alpha
 params["sigma"] = sigma = np.sqrt(r0)/5
 
 # Covariance
-params["rho"] = rho = 0.8
+params["rho"] = 0.8
 
 # Number of steps and Number of Paths total
 params["N"] = N = (T-t0)*128
-N_paths = 10
+N_paths = 1600
 
 # Global base time grid, pre jump insertion
 t_s_base = np.linspace(t0,T,N)
 T_s = np.arange(0,11,1)
 
-
 #########################################
 ## Define Globally shareable Caches    ##
 #########################################
-# General functions
+# Finding K at startup, maybe put this in the global cache file?
 def A_naive(t,T):
     A = -(sigma**2)/(4*alpha**3) * (3 + np.e**(-2*alpha*(T-t)) - 4*np.e**(-alpha*(T-t)) - 2*alpha*(T-t)) - (theta/alpha)*((T-t) - (1/alpha)*(1 - np.e**(-alpha*(T-t))))
     return A
@@ -105,128 +120,31 @@ def B_naive(t,T):
     B = -(1/alpha)*(1 - np.e**(-alpha*(T-t)))
     return B
 
-minimize = lambda cashflows, dates, Tm, rstar: 1 - sum([c*np.e**(A_naive(Tm,date) + B_naive(Tm,date)*rstar) for c, date in zip(cashflows,dates)])
-def rstar_naive(T_s, K):
-    cashflows = (K*np.diff(T_s) + np.concatenate((np.zeros((1,len(T_s)-2)), np.asmatrix(1)),1)).A1
-    dates = T_s[1:]
-    Tm = T_s[0]
-    optim = lambda rstarl: minimize(cashflows, dates, Tm, rstarl)
-    rstar = optimize.newton(optim, 0)
-    return rstar
-
 # A big cache
-class Global_Cache:
-    def __init__(self, T_s, K):
-        self.A_cache = dict()
-        self.B_cache = dict()
-        self.rstar_cache = dict()
-        
-        # Fill the Cache 
-        for t in t_s_base:
-            for T in T_s:
-                # Fill the A_cache
-                keyA = self.A_key(t,T)
-                self.A_cache[keyA] = A_naive(t,T)
-
-                # Fill the B_cache
-                keyB = self.B_key(t,T)
-                self.B_cache[keyB] = B_naive(t,T)
-
-        for i in range(0,len(T_s)-1):
-            # Fill the rstar cache
-            keyR = self.rstar_key(T_s[i:],K)
-            self.rstar_cache[keyR] = rstar_naive(T_s[i:],K)
-           
-    def A(self,t,T):
-        key = self.A_key(t,T)
-        if key in self.A_cache:
-            A = self.A_cache[key]
-        else:
-            A = A_naive(t,T)
-        return A
-    
-    def B(self,t,T):
-        key = self.B_key(t,T)
-        if key in self.B_cache:
-            B = self.B_cache[key]
-        else:
-            B = B_naive(t,T)
-        return B
-    
-    def rstar(self,T_s,K):
-        key = self.rstar_key(T_s,K)
-        if key in self.rstar_cache:
-            r_star = self.rstar_cache[key]
-        else:
-            r_star = rstar_naive(T_s,K)
-        return r_star
-
-    def A_key(self,t,T):
-        key = hash((t,T))#str(np.round(t,15)) + ',' + str(np.round(T,15))
-        return key
-    
-    def B_key(self,t,T):
-        key = hash((t,T))#str(np.round(t,15)) + ',' + str(np.round(T,15))
-        return key
-        
-    def rstar_key(self,T_s,K):
-        key = hash((str(T_s),K))#str(np.round(T_s,15)) + ',' + str(np.round(K,15))
-        return key
-
 P = lambda t,T,rt: np.e**(A_naive(t,T)+B_naive(t,T)*rt)
-K = (P(0,T_s[0],r0) - P(0,T_s[-1],r0))/(sum([P(0,T_s[i],r0) for i in range(1,len(T_s))]))
-gc = Global_Cache(T_s,K)
+K = (P(0,T_s[0],r0) - P(0,T_s[-1],r0))/(sum([P(0,T_s[i],r0) for i in range(1,len(T_s))])) # This way of finding the correct K is a bit sloppy but eh
+gc = Global_Cache(t_s_base,T_s,params,K)
 
-"""
-# In Cache Time test
-strt1 = time.time()
-for i in np.arange(0,100,1):
-    gc.A(t_s_base[i],30)
-end1 = time.time()
-
-# Out of Cache Time test
-strt2 = time.time()
-for i in np.arange(0,100,1):
-    gc.A(t_s_base[i],31)
-end2 = time.time()
-
-print("In Cache 100 steps A speed = %s" %(end1-strt1))
-print("Out of Cache 100 steps A speed = %s" %(end2-strt2))
-## RSTAR is orders of magnitude better as well, once the bigger loop is setup it's worth double
-checking that the dict is finding all of the available values since floating points might jiggle into 
-not counting as the same hash.
-"""
-
-
-"""
-For the sake of simplicity I'll define a path object which just stores the relevant matrices for now, 
-this could really be a dict or a dataframe or a np.ndarray where we know what sits at each index
-"""
-class Path():
-    def __init__(self, t_s, lambdas, r, CVA, Q_s, Swaps, Swaptions):
-        self.t_s = t_s
-        self.lambdas = lambdas
-        self.r = r
-        self.CVA = CVA
-        self.Q_s = Q_s
-        self.Swaps = Swaps
-        self.Swaptions = Swaptions
-
-strt = time.time()
-paths = []
-for pathN in range(0,N_paths):
+#for pathN in range(0,N_paths):
+def process(pathN):
     # Generate the market grid and basic r and lambda
     [t_s,r,lambdas,r_ongrid,lambdas_ongrid] = bg.mkt_base_from_grid(t_s_base,params)
     # Create a pricing object for this specific market
     pricer = pf.PricingFunc(params, gc, t_s, r, r_ongrid,lambdas, lambdas_ongrid)
     
-    #Q_s = [[pricer.Q(t,T) for t in t_s] for T in T_s]
+    Q_s = [[pricer.Q(t,T) for t in t_s] for T in T_s]   # Here there must be room for performance improvement? These lists could be pre-allocated or something since we know that it's going to be a list of a list of floats, same for below??
+    Swaptions = [[pricer.swaption_price(t,T_s_2,K) for t in t_s] for T_s_2 in [T_s[i:] for i in range(0,len(T_s)-1)]] # Maybe we could C compile this file? Should be a huge performance increase, but might be a headache since we need to track down and type hint everything
     CVA = [pricer.CVA(t,T_s,K) for t in t_s]
-    #Swaptions = [[pricer.swaption_price(t,T_s_2,K) for t in t_s] for T_s_2 in [T_s[i:] for i in range(0,len(T_s)-1)]]
-    #Swaps = [[pricer.swap_price(t,T_s_2,K) for t in t_s] for T_s_2 in [T_s[i:] for i in range(0,len(T_s)-1)]]
-    print("N = %s" %pathN)
+    Swaps = [[pricer.swap_price(t,T_s_2,K) for t in t_s] for T_s_2 in [T_s[i:] for i in range(0,len(T_s)-1)]]
 
-    paths.append(Path(t_s, lambdas, r, CVA, None, None, None))
+    return Path(t_s, lambdas, r, CVA, Q_s, Swaps, Swaptions)
 
+strt = time.time()
+paths = Parallel(n_jobs = 4)(delayed(process)(pathN) for pathN in range(0,N_paths)) 
+end_time = time.time()
 
-print((time.time()-strt)/N_paths)
+print("Total Time: %s" %(end_time - strt))
+print("Average Time Per Path %s: " %((end_time - strt)/N_paths))
+
+with open("3kRunDemo.pkl","wb") as fp:
+    pickle.dump(paths,fp)

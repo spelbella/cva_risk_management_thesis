@@ -27,12 +27,13 @@ class PricingFunc():
         self.lambda_ongrid = lambda_ongrid
 
         # Define Caches for potentially re-used objects
-        self.meta_cache = meta_cache
-        self.P_cache = dict()
-        self.ZCBV_cache = dict()
-        self.Swap_cache = dict()
-        self.Swaption_cache = dict()
-        self.Q_cache = dict()
+        self.meta_cache = meta_cache # Known working in current implen
+        self.P_cache = dict()   # Known working in current implen
+        self.ZCBV_cache = dict() 
+        self.Swap_cache = dict() # Known working in current implen
+        self.Swaption_cache = dict() # Known working in current implen
+        self.speedups = 0
+        self.Q_cache = dict() # Seems to Work in current implen
         self.h = (self.kappa**2 + 2*self.v**2)**(1/2)
 
         self.i = 0
@@ -95,13 +96,15 @@ class PricingFunc():
     def rstar(self,T_s,K):
         return self.meta_cache.rstar(T_s,K)
     
+    
     # Finding interest rate from time
     def r_time(self,t):
-        key = hash(round(t,10))
+        key = hash(t)
         if key in self.r_ongrid:
             r = self.r_ongrid[key]
         else:
             r = np.interp(t,self.t_s,self.r)
+            self.r_ongrid[key] = r
         return r 
     
     # Swap pricing
@@ -144,9 +147,8 @@ class PricingFunc():
 
     # Swaption Pricing
     def swaption_price(self, t, T_s, K):
-        rt = self.r_time(t)
         """Sloppy Caching Code Begins"""
-        key = hash((round(t,10),round(rt,10),str(T_s),round(K,10)))
+        key = str((round(t,10),str(np.asarray(T_s).astype(float)),round(K,10)))
         if key in self.Swaption_cache:
             return self.Swaption_cache[key]
         """Sloppy Caching Code Ends"""
@@ -195,10 +197,12 @@ class PricingFunc():
     def alpha_hat(self,t,T):
         return self.A_cir(t,T)*((2*self.h*np.exp((self.h + self.kappa + 2*self.gamma)/(2) * (T-t)))/(2*self.h + (self.kappa + self.h + 2*self.gamma)*(np.exp(self.h*(T-t))-1)))**((2*self.j_alpha*self.gamma)/(self.v**2 - 2*self.kappa*self.gamma - 2*self.gamma**2))
     def lambda_from_t(self,t):
-        if hash(round(t,10)) in self.lambda_ongrid:
-            return self.lambda_ongrid[hash(round(t,10))]
+        if hash(t) in self.lambda_ongrid:
+            return self.lambda_ongrid[hash(t)]
         else:
-            return np.interp(t,self.t_s,self.lambdas)
+            lambd = np.interp(t,self.t_s,self.lambdas)
+            self.lambda_ongrid[hash(t)] = lambd
+            return lambd
     def Q(self,t,T):
         key = hash((round(t,10),round(T,10)))
         if key in self.Q_cache:
@@ -224,7 +228,7 @@ class PricingFunc():
 
         # First lets rewrite the T_s vector into a T_s vector where all the payments are actually still in the future, and it starts at the last passed adjustment date
         T_s_local = T_s.copy()
-        T_s_local = np.append(T_s_local,np.inf)
+        T_s_local = np.append(T_s_local,T_s[-1]+1000)
         T_s_local = [T_s_local[i] for i in range(len(T_s_local)-1) if T_s_local[i+1] > t]
 
         # Then we find the probability of default before each payment given that we haven't defaulted up to now, allowing the probability to default in the first bucket to extend to t instead of T
