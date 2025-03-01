@@ -201,8 +201,8 @@ for i in np.arange(0,100,1):
     gc.A(t_s_base[i],30)
 end1 = time.time()
 
-strt2 = time.time()
 # Out of Cache Time test
+strt2 = time.time()
 for i in np.arange(0,100,1):
     gc.A(t_s_base[i],31)
 end2 = time.time()
@@ -244,5 +244,6 @@ for pathN in range(0,N_paths):
     print("N = %s" %pathN)
 
     paths.append(Path(t_s, lambdas, r, CVA, None, None, None))
+
 
 print((time.time()-strt)/N_paths)
