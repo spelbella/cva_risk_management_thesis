@@ -12,7 +12,7 @@ class tradingEng(gym.Env):
         self.currpth =  paths[self.pthIDX]
 
         # The time index
-        self.tIDX = -1
+        self.tIDX = 0
 
         # Tracks the last held position
         self._agent_position = dict()
@@ -49,9 +49,14 @@ class tradingEng(gym.Env):
                 }
     
     def swaptions_now(self):
-        return [self.currpth.Swaptions[self.tIDX][i] for i in range(0,9)]
+        try:
+            return [self.currpth.Swaptions[i][self.tIDX] for i in range(0,9)]
+        except:
+            print(self.tIDX)
+        finally:
+            pass
     def Q_now(self):
-        return [self.currpth.Q_s[self.tIDX][i] for i in range(1,10)]
+        return [self.currpth.Q_s[i][self.tIDX] for i in range(1,10)]
     
     def posValue(self):
         swaptions_val = np.linalg.norm(np.inner(self._agent_position["Swaption Position"],self.swaptions_now()))
@@ -59,8 +64,8 @@ class tradingEng(gym.Env):
         return Q_val + swaptions_val
     
     def AposValue(self, action):
-        swaptions_val = np.linalg.norm(np.inner(self.action["Swaption Position"],self.currpth.Swaptions[:][self.tIDX]))
-        Q_val = np.linalg.norm(np.inner(self.action["Q Position"],self.currpth.Q_s[1:,self.tIDX]))
+        swaptions_val = np.linalg.norm(np.inner(action["Swaption Position"],self.swaptions_now()))
+        Q_val = np.linalg.norm(np.inner(action["Q Position"],self.Q_now()))
         return Q_val + swaptions_val
     
     def PnL(self):
@@ -76,11 +81,11 @@ class tradingEng(gym.Env):
         if self.pthIDX > 1550:
             self.pthIDX = 0
         self.currpth = self.paths[self.pthIDX]
-        swaption_value_at0 = self.currpth.Swaptions[2][0]
+        swaption_value_at0 = self.currpth.Swaptions[9][0]
         CVA_at_t0 = self.currpth.CVA[0]
         self._agent_position = dict({
-                "Swaption Position" : [0,0,CVA_at_t0/swaption_value_at0, 0, 0, 0,0,0,0],
-                "Q Position" : [0,0,0,0,0,0,0,0,0],
+                "Swaption Position" : [0.0001,0.000001,0.000001, 0.000001, 0.000001, 0.000001,0.00001,0.00001,CVA_at_t0/swaption_value_at0],
+                "Q Position" : [0.00001,0.000001,0.000001,0.000001,0.000001,0.000001,0.000001,0.000001,0.000001],
         })
 
         observation = self._get_obs()
@@ -91,11 +96,17 @@ class tradingEng(gym.Env):
     # The meat and potatoes
     def step(self, action):
         self.tIDX = self.tIDX + 1
+        if self.tIDX > 1100:
+            self.tIDX = 0
+
         entry_value = self.posValue()
         value_action = self.AposValue(action)
+        scale = value_action/entry_value
 
-        scaled_action = action*(entry_value/value_action)
-
+        scaled_action = dict({
+             "Swaption Position" : action["Swaption Position"]*scale,
+             "Q Position" : action["Q Position"]*scale,
+        })
         self._agent_position = scaled_action
 
         # End the environment after we reach year 9
