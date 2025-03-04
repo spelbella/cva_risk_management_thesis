@@ -101,7 +101,7 @@ class tradingEng(gym.Env):
 
         entry_value = self.posValue()
         value_action = self.AposValue(action)
-        scale = value_action/entry_value
+        scale = entry_value/value_action
 
         scaled_action = dict({
              "Swaption Position" : action["Swaption Position"]*scale,
