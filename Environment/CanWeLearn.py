@@ -57,7 +57,6 @@ class actorCritic(tf.keras.Model):
         self.pre_action = layers.Dense(n_obs)
         self.almost_action = layers.Dense(n_actions)
         self.action = layers.Softmax()
-        self.pre_critic = layers.Dense(n_actions)
         self.critic = layers.Dense(1)
 
     def call(self, inputs:tf.Tensor) -> tuple[tf.Tensor]:
@@ -66,8 +65,7 @@ class actorCritic(tf.keras.Model):
         almost_action = self.almost_action(pre_action)
         action = self.action(almost_action)
 
-        pre_critic = self.pre_critic(common)
-        critic = self.critic(pre_critic)
+        critic = self.critic(common)
         return action, critic
 
 model = actorCritic()
@@ -89,7 +87,7 @@ def run_episode(model):
     critics = tf.TensorArray(dtype=np.float32, size=0, dynamic_size=True)
 
     state = tf.expand_dims(read_obs(), 0)
-    for k in tf.range(10):
+    for k in tf.range(15):
         for t in tf.range(1000):
             # Convert state into a batched tensor
             state = tf.expand_dims(read_obs(), 0)
@@ -125,7 +123,7 @@ def get_expected_return(rewards: tf.Tensor, gamma: float) -> tf.Tensor:
     discounted_sum_shape = discounted_sum.shape
     for i in tf.range(n):
         reward = rewards[i]
-        discounted_sum = reward + gamma * discounted_sum
+        discounted_sum = reward*(1/1e-6) + gamma * discounted_sum 
         discounted_sum.set_shape(discounted_sum_shape)
         returns = returns.write(i,discounted_sum)
     returns = returns.stack()[::-1]
@@ -139,7 +137,7 @@ def compute_loss(actions, returns, critics):
     return actor_loss, critic_loss
 
 """ Training """
-optimizer = tf.keras.optimizers.Adam(learning_rate= 0.05)
+optimizer = tf.keras.optimizers.SGD(learning_rate= 0.015)
 
 # Train and learn
 min_episodes_criterion = 100
