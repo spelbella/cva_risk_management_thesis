@@ -1,4 +1,5 @@
 import gymnasium as gym
+from MarketGeneratingFunctions.path_datatype import Path
 import numpy as np
 
 class tradingEng(gym.Env):

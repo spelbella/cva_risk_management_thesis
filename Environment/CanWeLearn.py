@@ -9,6 +9,7 @@ from matplotlib import pyplot as plt
 from tensorflow import keras
 from keras import layers, models
 from typing import Any, List, Sequence, Tuple
+from MarketGeneratingFunctions.path_datatype import Path
 
 import pickle
 
