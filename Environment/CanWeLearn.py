@@ -9,6 +9,7 @@ from matplotlib import pyplot as plt
 from tensorflow import keras
 from keras import layers, models
 from typing import Any, List, Sequence, Tuple
+from MarketGeneratingFunctions.path_datatype import Path
 
 import pickle
 
@@ -96,7 +97,7 @@ def run_episode(model):
             action, critic_val = model(state)
 
             # Store the action and critic
-            actions = actions.write(t+k*1000, action)
+            actions = actions.write(t+k*1000, action) # This neeeds to be randomly selected see notes
             critics = critics.write(t+k*1000, critic_val)
         
             # Apply the action
