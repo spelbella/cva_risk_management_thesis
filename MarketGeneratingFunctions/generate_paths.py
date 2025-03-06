@@ -102,7 +102,7 @@ params["rho"] = 0.8
 
 # Number of steps and Number of Paths total
 params["N"] = N = (T-t0)*128
-N_paths = 1600
+N_paths = 200
 
 # Global base time grid, pre jump insertion
 t_s_base = np.linspace(t0,T,N)
@@ -112,18 +112,8 @@ T_s = np.arange(0,11,1)
 ## Define Globally shareable Caches    ##
 #########################################
 # Finding K at startup, maybe put this in the global cache file?
-def A_naive(t,T):
-    A = -(sigma**2)/(4*alpha**3) * (3 + np.e**(-2*alpha*(T-t)) - 4*np.e**(-alpha*(T-t)) - 2*alpha*(T-t)) - (theta/alpha)*((T-t) - (1/alpha)*(1 - np.e**(-alpha*(T-t))))
-    return A
-
-def B_naive(t,T):
-    B = -(1/alpha)*(1 - np.e**(-alpha*(T-t)))
-    return B
-
-# A big cache
-P = lambda t,T,rt: np.e**(A_naive(t,T)+B_naive(t,T)*rt)
-K = (P(0,T_s[0],r0) - P(0,T_s[-1],r0))/(sum([P(0,T_s[i],r0) for i in range(1,len(T_s))])) # This way of finding the correct K is a bit sloppy but eh
-gc = Global_Cache(t_s_base,T_s,params,K)
+gc = Global_Cache(t_s_base,T_s,params)
+K = gc.K
 
 #for pathN in range(0,N_paths):
 def process(pathN):
@@ -146,5 +136,5 @@ end_time = time.time()
 print("Total Time: %s" %(end_time - strt))
 print("Average Time Per Path %s: " %((end_time - strt)/N_paths))
 
-with open("3kRunDemo.pkl","wb") as fp:
-    pickle.dump(paths,fp)
+#with open("3kRunDemo.pkl","wb") as fp:
+#    pickle.dump(paths,fp)

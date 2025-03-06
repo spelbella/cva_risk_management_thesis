@@ -4,6 +4,9 @@ from scipy import integrate
 import random
 from scipy.stats import norm
 
+"""
+Vasicek pricing function, gives the prices we're interested in for a given market passed using r, r_ongrid, lambdas and lambda_ongrid
+"""
 class PricingFunc():
     def __init__(self, params, meta_cache, t_s, r, r_ongrid, lambdas, lambda_ongrid):
         # Absorb Params, we don't need all of these sometimes but sometimes we do.
@@ -249,7 +252,9 @@ class PricingFunc():
 
         return sum([buc*hedg for buc, hedg in zip(default_buckets,hedging_swaptions)])
     
-
+"""
+Hull White pricing function, gives the prices we're interested in for a given market passed using r, r_ongrid, lambdas and lambda_ongrid
+"""
 class PricingFunc_HW():
     def __init__(self, params, meta_cache, t_s, r, r_ongrid, lambdas, lambda_ongrid):
         # Absorb Params, we don't need all of these sometimes but sometimes we do.
@@ -273,13 +278,14 @@ class PricingFunc_HW():
         self.lambda_ongrid = lambda_ongrid
 
         # Define Caches for potentially re-used objects
-        self.meta_cache = meta_cache # Known working in current implen
-        self.P_cache = dict()   # Known working in current implen
+        self.meta_cache = meta_cache 
+        self.P_cache = dict()  
         self.ZCBV_cache = dict() 
-        self.Swap_cache = dict() # Known working in current implen
-        self.Swaption_cache = dict() # Known working in current implen
+        self.Swap_cache = dict() 
+        self.Swaption_cache = dict() 
         self.speedups = 0
-        self.Q_cache = dict() # Seems to Work in current implen
+        self.Q_cache = dict() 
+        self.mu_v_cache = dict()
         self.h = (self.kappa**2 + 2*self.v**2)**(1/2)
 
         self.i = 0
@@ -314,8 +320,15 @@ class PricingFunc_HW():
     # Put on ZCB functions
     def Fn(self,arg):
         return norm.cdf(arg)
+    
+    # mu_v gets a cache since it's numerically integrating, but I'm not sure if the same mu is hit twice?
     def mu_v(self,t,T,r0):
-        ret = r0*np.e**(-self.alpha*(T - t)) + integrate.trapezoid([(self.meta_cache.theta(z)+(self.sigma**2)*(1/self.alpha)*self.B(z,T))*np.exp(-self.alpha*(T-z)) for z in np.linspace(t, T, 50)],x=np.linspace(t, T, 50))
+        key = (round(t,12),round(T,12),round(r0,12))
+        if key in self.mu_v_cache:
+            ret = self.mu_v_cache[key]
+        else:
+            ret = r0*np.e**(-self.alpha*(T - t)) + integrate.trapezoid([(self.meta_cache.theta(z)+(self.sigma**2)*(1/self.alpha)*self.B(z,T))*np.exp(-self.alpha*(T-z)) for z in np.linspace(t, T, 50)],x=np.linspace(t, T, 50))
+            self.mu_v_cache[key] = ret
         return ret
     def v_r2(self,t,T):
         return (self.sigma**2)/(2*self.alpha)*(1 - np.e**(-2*self.alpha*(T-t)))
@@ -432,7 +445,7 @@ class PricingFunc_HW():
     
     # Finally we can find the CVA
     # CVA deserves a full func, since there is some efficiency to be won, and it's both critical and hard to test
-    def CVA(self, t, T_s, K, adj = False):
+    def CVA(self, t, T_s, K):
         # Args:
         # t, the current time/the filtration time
         # rt, the current interest rate
@@ -441,7 +454,6 @@ class PricingFunc_HW():
         # lambd, the current probability of default, the rest of the factors needed to find Q come from the model which Q already "knows"
         # Returns: 
         # The CVA estimate, a float
-        lambd = self.lambda_from_t(t)
 
         # First lets rewrite the T_s vector into a T_s vector where all the payments are actually still in the future, and it starts at the last passed adjustment date
         T_s_local = T_s.copy()
@@ -462,3 +474,5 @@ class PricingFunc_HW():
 
         return sum([buc*hedg for buc, hedg in zip(default_buckets,hedging_swaptions)])
     
+
+""" TO DO, add efficiency to caps, find what's slow in HW pricing and look for speedups, add cap padded CVA and fully cap padded CVA to both"""
