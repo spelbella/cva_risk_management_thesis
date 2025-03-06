@@ -73,10 +73,12 @@ class tradingEng(gym.Env):
 
     def _get_info(self):
         return{
-            "SqrdP&L": self.PnL()**2
+            "SqrdP&L": self.PnL()**2,
+            "P&L": self.PnL()
         }
     
     def reset(self, seed = None, options = None):
+        self.tIDX = 0
         self.pthIDX = self.pthIDX + 1
         if self.pthIDX > 1550:
             self.pthIDX = 0
@@ -96,24 +98,42 @@ class tradingEng(gym.Env):
     # The meat and potatoes
     def step(self, action):
         self.tIDX = self.tIDX + 1
-        if self.tIDX > 1100:
-            self.tIDX = 0
+        actionl = action.copy()
+        # Force zero position in expired positions
+        for i in range(len(actionl["Swaption Position"])):
+            if self.currpth.t_s[self.tIDX]-2 > i:
+                actionl["Swaption Position"][i] = 0.0
+                actionl["Q Position"][i] = 0.0               
 
+        # Convert fraction of portfolio to amount of options
+        agent_position = dict()
+        agent_position["Swaption Position"] = np.zeros(9)
+        agent_position["Q Position"] = np.zeros(9)
+        swap_values = self.swaptions_now()
+        Q_values = self.Q_now()
+        for i in range(len(action["Swaption Position"])):
+            agent_position["Swaption Position"][i] = actionl["Swaption Position"][i]/(max(swap_values[i],1e-16))
+            agent_position["Q Position"][i] = actionl["Q Position"][i]/(max(Q_values[i],1e-16))  
+
+        # Enforce value restraints
         entry_value = self.posValue()
-        value_action = self.AposValue(action)
+        value_action = self.AposValue(agent_position)
         scale = entry_value/value_action
 
         scaled_action = dict({
-             "Swaption Position" : action["Swaption Position"]*scale,
-             "Q Position" : action["Q Position"]*scale,
+             "Swaption Position" : agent_position["Swaption Position"]*scale,
+             "Q Position" : agent_position["Q Position"]*scale,
         })
         self._agent_position = scaled_action
 
         # End the environment after we reach year 9
         terminated = self.currpth.t_s[self.tIDX] > 9
         truncated = False
-        reward = -(self.PnL())**2
+        reward = -self.PnL()**2
         info = self._get_info()
         observation = self._get_obs()
+
+        if terminated:
+            self.reset()
 
         return observation, reward, terminated, truncated, info

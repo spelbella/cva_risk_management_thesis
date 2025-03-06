@@ -54,18 +54,28 @@ class actorCritic(tf.keras.Model):
         super().__init__()
 
         self.common = layers.Dense(2*n_obs, activation="relu")
-        self.pre_action = layers.Dense(n_obs)
-        self.almost_action = layers.Dense(n_actions)
+        self.pre_action = layers.Dense(n_obs*2, activation="relu")
+        self.almost_action = layers.Dense(n_actions, activation="relu")
+        self.more = layers.Dense(n_actions, activation="relu")
         self.action = layers.Softmax()
-        self.critic = layers.Dense(1)
+        self.pre_critic = layers.Dense(n_actions, activation="relu")
+        self.pre_critic2p = layers.Dense(4, activation="relu")
+        self.pre_critic2 = layers.Dense(4, activation="relu")
+        self.pre_critic3 = layers.Dense(2, activation="sigmoid")
+        self.critic = layers.Dense(1, activation='linear')
 
     def call(self, inputs:tf.Tensor) -> tuple[tf.Tensor]:
         common = self.common(inputs)
         pre_action = self.pre_action(inputs)
         almost_action = self.almost_action(pre_action)
-        action = self.action(almost_action)
+        more = self.more(almost_action)
+        action = self.action(more)
 
-        critic = self.critic(common)
+        pre_critic = self.pre_critic(common)
+        pre_critic2p = self.pre_critic2p(pre_critic)
+        pre_critic2 = self.pre_critic2(pre_critic2p)
+        pre_critic3 = self.pre_critic3(pre_critic2)
+        critic = self.critic(pre_critic3)
         return action, critic
 
 model = actorCritic()
@@ -87,27 +97,26 @@ def run_episode(model):
     critics = tf.TensorArray(dtype=np.float32, size=0, dynamic_size=True)
 
     state = tf.expand_dims(read_obs(), 0)
-    for k in tf.range(15):
-        for t in tf.range(1000):
-            # Convert state into a batched tensor
-            state = tf.expand_dims(read_obs(), 0)
+    for t in tf.range(10000):
+        # Convert state into a batched tensor
+        state = tf.expand_dims(read_obs(), 0)
 
-            # Run the model
-            action, critic_val = model(state)
+        # Run the model
+        action, critic_val = model(state)
 
-            # Store the action and critic
-            actions = actions.write(t+k*1000, action)
-            critics = critics.write(t+k*1000, critic_val)
+        # Store the action and critic
+        actions = actions.write(t, action)
+        critics = critics.write(t, critic_val)
         
-            # Apply the action
-            state, reward, done = env_step(action)
+        # Apply the action
+        state, reward, done = env_step(action)
 
-            # Store reward
-            rewards = rewards.write(t+k*1000, reward)
+        # Store reward
+        rewards = rewards.write(t, reward)
 
-            # Break at end of epoch
-            if done:
-                break
+        # Break at end of epoch
+        if done:
+            break
 
     actions = actions.stack()
     rewards = rewards.stack()
@@ -137,11 +146,11 @@ def compute_loss(actions, returns, critics):
     return actor_loss, critic_loss
 
 """ Training """
-optimizer = tf.keras.optimizers.SGD(learning_rate= 0.015)
+optimizer = tf.keras.optimizers.Adam(learning_rate= 0.005)
 
 # Train and learn
 min_episodes_criterion = 100
-max_episodes = 1000
+max_episodes = 100000
 gamma = 0.99
 
 @tf.function
