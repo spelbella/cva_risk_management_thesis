@@ -1,6 +1,7 @@
 import collections
 import gymnasium as gym
 import numpy as np
+from scipy.stats import multivariate_normal
 import statistics
 import tensorflow as tf
 import tqdm
@@ -9,7 +10,8 @@ from matplotlib import pyplot as plt
 from tensorflow import keras
 from keras import layers, models
 from typing import Any, List, Sequence, Tuple
-from MarketGeneratingFunctions.path_datatype import Path
+from path_datatype import Path
+from random import random
 
 import pickle
 
@@ -92,8 +94,10 @@ def env_step(action: np.ndarray) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
   done = done
   return (state, reward, done)
 
-def run_episode(model):
+rand_scaling_0 = 0.001
+def run_episode(model, iter = 0):
     actions = tf.TensorArray(dtype=np.float32, size=0, dynamic_size=True)
+    action_probs = tf.TensorArray(dtype=tf.float32, size=0, dynamic_size=True)
     rewards = tf.TensorArray(dtype=np.float32, size=0, dynamic_size=True)
     critics = tf.TensorArray(dtype=np.float32, size=0, dynamic_size=True)
 
@@ -104,9 +108,14 @@ def run_episode(model):
 
         # Run the model
         action, critic_val = model(state)
+        norm_dist = tf.random.normal(tf.shape(action))*(rand_scaling_0/(1+iter))
+        action = tf.math.add(action, norm_dist)
+        action_lg_likelihood = -tf.reduce_sum(tf.math.square(norm_dist)/2, axis = None)
 
         # Store the action and critic
-        actions = actions.write(t, action)
+        actions = actions.write(t, action) 
+        action_probs = action_probs.write(t,action_lg_likelihood)
+        
         critics = critics.write(t, critic_val)
         
         # Apply the action
@@ -119,10 +128,10 @@ def run_episode(model):
         if done:
             break
 
-    actions = actions.stack()
+    action_probs = action_probs.stack()
     rewards = rewards.stack()
     critics = critics.stack()
-    return actions, rewards, critics
+    return action_probs, rewards, critics
 
 def get_expected_return(rewards: tf.Tensor, gamma: float) -> tf.Tensor:
     n = tf.shape(rewards)[0]
@@ -141,8 +150,9 @@ def get_expected_return(rewards: tf.Tensor, gamma: float) -> tf.Tensor:
 
 huber_loss = tf.keras.losses.Huber(reduction = tf.keras.losses.Reduction.SUM)
 @tf.function
-def compute_loss(actions, returns, critics):
-    actor_loss = tf.math.reduce_mean(returns - critics)
+def compute_loss(action_probs, returns, critics):
+    action_log_probs = action_probs
+    actor_loss = tf.math.reduce_sum(tf.math.multiply(action_log_probs,(returns - critics)))
     critic_loss = huber_loss(returns, critics)
     return actor_loss, critic_loss
 
@@ -151,7 +161,7 @@ optimizer = tf.keras.optimizers.Adam(learning_rate= 0.005)
 
 # Train and learn
 min_episodes_criterion = 100
-max_episodes = 100000
+max_episodes = 1500
 gamma = 0.99
 
 @tf.function
@@ -163,14 +173,15 @@ def train_step(
     max_steps_per_episode: int) -> tf.Tensor:
 
     with tf.GradientTape() as tape:
-        actions, rewards, critics = run_episode(model)
+        action_log_probs, rewards, critics = run_episode(model)
         returns = get_expected_return(rewards, gamma)
         
         # Format fix
-        actions, rewards, critics = [tf.expand_dims(x,1) for x in [actions, rewards, critics]]
+        action_log_probs, rewards, critics = [tf.expand_dims(x,1) for x in [action_log_probs, rewards, critics]]
+        print
 
         # Calculate loss
-        act_loss, crit_loss = compute_loss(actions, returns, critics)
+        act_loss, crit_loss = compute_loss(action_log_probs, returns, critics)
         loss_value = act_loss + crit_loss
 
     # Compute gradients
