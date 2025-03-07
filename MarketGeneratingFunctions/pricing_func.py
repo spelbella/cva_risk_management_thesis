@@ -40,7 +40,6 @@ class PricingFunc():
         self.Q_cache = dict() # Seems to Work in current implen
         self.h = (self.kappa**2 + 2*self.v**2)**(1/2)
 
-        self.i = 0
         return
 
     """ Define all of the pricing funcs with caching """
@@ -52,7 +51,7 @@ class PricingFunc():
     def Khat(self,t,T,rstar):
         return np.e**(self.A(t,T) + self.B(t,T)*rstar)
     def P(self,t,T,rt):
-        key = hash((round(t,10),round(T,10),round(rt,10)))
+        key = hash((round(t,15),round(T,15),round(rt,15)))
         if key in self.P_cache:
             P_ret = self.P_cache[key]
         else:
@@ -83,7 +82,7 @@ class PricingFunc():
 
     # Value of a put option on a ZCB, option expiry T before or at payout date of ZCB T + tau, for call pass type = 0 for put type = 1
     def VZCB(self,t,T,tau,K,type):
-        key = hash((round(t,10),round(T,10),round(tau,10),round(K,10),type))
+        key = hash((round(t,15),round(T,15),round(tau,15),round(K,15),type))
         rt = self.r_time(t)
         if key in self.ZCBV_cache:
             val = self.ZCBV_cache[key]
@@ -118,7 +117,7 @@ class PricingFunc():
             return 0
         
         # Check Cache
-        key = hash((round(t,10),str(T_s),round(K,10)))
+        key = hash((round(t,15),str(T_s),round(K,15)))
         if key in self.Swap_cache:
             val = self.Swap_cache[key]
         else:
@@ -152,7 +151,7 @@ class PricingFunc():
     # Swaption Pricing
     def swaption_price(self, t, T_s, K):
         """Sloppy Caching Code Begins"""
-        key = str((round(t,10),str(np.asarray(T_s).astype(float)),round(K,10)))
+        key = str((round(t,15),str(np.asarray(T_s).astype(float)),round(K,15)))
         if key in self.Swaption_cache:
             return self.Swaption_cache[key]
         """Sloppy Caching Code Ends"""
@@ -208,7 +207,7 @@ class PricingFunc():
             self.lambda_ongrid[hash(t)] = lambd
             return lambd
     def Q(self,t,T):
-        key = hash((round(t,10),round(T,10)))
+        key = hash((round(t,15),round(T,15)))
         if key in self.Q_cache:
             Q_val = self.Q_cache[key]
         else:
@@ -245,7 +244,6 @@ class PricingFunc():
         
         # Finding hedging swaptions
         hedging_swaptions = [self.swaption_price(t, T_s_local[k:], K) for k in range(1,len(T_s_local)-1,1)]
-        self.i = self.i+1
         if adj:
             hedging_swaptions.append(self.caplet_price(t,T_s_local[0],T_s_local[1],K))
             default_buckets.append(1-self.Q(t,T_s_local[1],lambd))
@@ -283,12 +281,33 @@ class PricingFunc_HW():
         self.ZCBV_cache = dict() 
         self.Swap_cache = dict() 
         self.Swaption_cache = dict() 
-        self.speedups = 0
         self.Q_cache = dict() 
         self.mu_v_cache = dict()
         self.h = (self.kappa**2 + 2*self.v**2)**(1/2)
 
-        self.i = 0
+        """
+        self.times_Pcache = 0 
+        self.times_Pfresh = 0
+
+        self.times_ZCBVcache = 0 
+        self.times_ZCBVfresh = 0
+
+        self.times_Swcache = 0 
+        self.times_Swfresh = 0
+
+        self.times_Swpcache = 0 
+        self.times_Swpfresh = 0
+
+        
+        self.times_Qcache = 0 
+        self.times_Qfresh = 0
+
+        self.times_mucache = 0 
+        self.times_mufresh = 0
+
+        self.times_rcache = 0
+        self.times_rfresh = 0
+        """
         return
     
     """ Define all of the pricing funcs with caching """
@@ -300,35 +319,42 @@ class PricingFunc_HW():
     def Khat(self,t,T,rstar):
         return self.meta_cache.Khat(t,T,rstar)
     def P(self,t,T,rt):
-        key = hash((round(t,10),round(T,10),round(rt,10)))
+        key = hash((round(t,15),round(T,15),round(rt,15)))
         if key in self.P_cache:
             P_ret = self.P_cache[key]
+            #self.times_Pcache = self.times_Pcache + 1
         else:
             P_ret = np.e**(self.A(t,T)+self.B(t,T)*rt)
             self.P_cache[key] = P_ret
+            #self.times_Pfresh = self.times_Pfresh + 1
         return P_ret
     
     def r_time(self,t):
         key = hash(t)
         if key in self.r_ongrid:
             r = self.r_ongrid[key]
+            #self.times_rcache = self.times_rcache + 1
         else:
             r = np.interp(t,self.t_s,self.r)
             self.r_ongrid[key] = r
+            #self.times_rfresh = self.times_rfresh + 1
         return r 
     
     # Put on ZCB functions
     def Fn(self,arg):
         return norm.cdf(arg)
     
-    # mu_v gets a cache since it's numerically integrating, but I'm not sure if the same mu is hit twice?
+    # mu_v gets a cache since it's numerically integrating, but I'm not sure if the same mu is ever hit twice?
     def mu_v(self,t,T,r0):
-        key = (round(t,12),round(T,12),round(r0,12))
+        n_steps = min(max(10,round(50*(T-t))),50)
+        key = (round(t,15),float(round(T,15)),round(r0,15))
         if key in self.mu_v_cache:
             ret = self.mu_v_cache[key]
+            #self.times_mucache = self.times_mucache + 1
         else:
-            ret = r0*np.e**(-self.alpha*(T - t)) + integrate.trapezoid([(self.meta_cache.theta(z)+(self.sigma**2)*(1/self.alpha)*self.B(z,T))*np.exp(-self.alpha*(T-z)) for z in np.linspace(t, T, 50)],x=np.linspace(t, T, 50))
+            ret = r0*np.e**(-self.alpha*(T - t)) + integrate.trapezoid([(self.meta_cache.theta(z)+(self.sigma**2)*(1/self.alpha)*self.B(z,T))*np.exp(-self.alpha*(T-z)) for z in np.linspace(t, T, n_steps)],x=np.linspace(t, T, n_steps))
             self.mu_v_cache[key] = ret
+            #self.times_mufresh = self.times_mufresh + 1
         return ret
     def v_r2(self,t,T):
         return (self.sigma**2)/(2*self.alpha)*(1 - np.e**(-2*self.alpha*(T-t)))
@@ -347,10 +373,18 @@ class PricingFunc_HW():
         # t = time right now
         # Tm = Expiry option
         # Tk = Maturity bond
-        rt = self.r_time(t)
-        term1 =  np.exp(0.5*self.B(Tm,Tk)**2*self.v_r2(t,Tm) + self.B(Tm,Tk)*self.mu_v(t,Tm,rt))*self.Fn(self.d1(t,Tm,Tk,K,rt)) - self.Khat2(Tm,Tk,K)*self.Fn(self.d2(t,Tm,Tk,K,rt))
-        call_value = self.P(t,Tm,rt)*np.exp(self.A(Tm,Tk))*term1 
-        return call_value + type*(-self.P(t,Tk,rt) + K*self.P(t,Tm,rt))
+        key = hash((round(t,15),float(round(Tm,15)),float(round(Tk,15)),round(K,15),type))
+        if key in self.ZCBV_cache:
+            value = self.ZCBV_cache[key]
+            #self.times_ZCBVcache = self.times_ZCBVcache + 1
+        else:
+            rt = self.r_time(t)
+            term1 =  np.exp(0.5*self.B(Tm,Tk)**2*self.v_r2(t,Tm) + self.B(Tm,Tk)*self.mu_v(t,Tm,rt))*self.Fn(self.d1(t,Tm,Tk,K,rt)) - self.Khat2(Tm,Tk,K)*self.Fn(self.d2(t,Tm,Tk,K,rt))
+            call_value = self.P(t,Tm,rt)*np.exp(self.A(Tm,Tk))*term1 
+            value = call_value + type*(-self.P(t,Tk,rt) + K*self.P(t,Tm,rt))
+            self.ZCBV_cache[key] = value
+            #self.times_ZCBVfresh = self.times_ZCBVfresh + 1
+        return value
     
         
     # Finding RSTAR
@@ -359,7 +393,6 @@ class PricingFunc_HW():
     def rstar(self,T_s,K):
         return self.meta_cache.rstar(T_s,K)
 
-
     # Solve for swap price
     def swap_price(self,t,T_s,K):
         # Catch passed swap
@@ -367,9 +400,10 @@ class PricingFunc_HW():
             return 0
         
         # Check Cache
-        key = hash((round(t,10),str(T_s),round(K,10)))
+        key = hash((round(t,15),str(T_s),round(K,15)))
         if key in self.Swap_cache:
             val = self.Swap_cache[key]
+            #self.times_Swcache = self.times_Swcache + 1
         else:
             T_s = T_s.copy()
             rt = self.r_time(t)
@@ -395,6 +429,7 @@ class PricingFunc_HW():
             if not len(T_s) <= 1:
                 future_value = self.P(t,T_s[0],rt) - self.P(t,T_s[-1],rt) - K*sum([tau_k*self.P(t,T_k,rt) for tau_k, T_k in zip(np.diff(T_s),T_s[1:])])
             val = (future_value + set_payment_value)
+            #self.times_Swfresh = self.times_Swfresh + 1
             self.Swap_cache[key] = val
         return val
     
@@ -403,18 +438,18 @@ class PricingFunc_HW():
         T_m = T_s[0] # The entrance date
         dates = T_s[1:] # The payment dates
         cashs = self.cashflows(K, T_s) # The Cashflows
-
-        self.r_time(t)
-
-        if (t>T_m or len(T_s)<2): # If the expiry has passed your swaption should be worthless / Expired
+        key = hash((round(t,15),str(np.float32(T_s)),round(K,15)))
+        if key in self.Swaption_cache:
+            value = self.Swaption_cache[key]
+            #self.times_Swpcache = self.times_Swpcache + 1
+        else:
+            if (t>T_m or len(T_s)<2): # If the expiry has passed your swaption should be worthless / Expired
                 value = 0 
                 return value
-        else:
-            dates = T_s[1:] # The payment dates
-            cashs = self.cashflows(K, T_s) # The Cashflows
-
             rst = self.rstar(T_s, K) # Rstar
             value = (sum([c*self.VZCB(t, T_m, Tk, self.Khat(T_m,Tk,rst), 1) for c, Tk in list(zip(cashs,dates))]))
+            self.Swaption_cache[key] = value
+            #self.times_Swpfresh = self.times_Swpfresh + 1
         return value
     
         # Now we find Q(T > tau | F_t)
@@ -434,13 +469,15 @@ class PricingFunc_HW():
             self.lambda_ongrid[hash(t)] = lambd
             return lambd
     def Q(self,t,T):
-        key = hash((round(t,10),round(T,10)))
+        key = hash((round(t,15),round(T,15)))
         if key in self.Q_cache:
             Q_val = self.Q_cache[key]
+            #self.times_Qcache = self.times_Qcache + 1
         else:
             lambd = self.lambda_from_t(t)
             Q_val = self.alpha_hat(t,T)*np.exp(-self.beta_hat(t,T)*lambd) *(T>t) + (t>=T)
             self.Q_cache[key] = Q_val
+            #self.times_Qfresh = self.times_Qfresh + 1
         return Q_val
     
     # Finally we can find the CVA
@@ -470,7 +507,6 @@ class PricingFunc_HW():
         
         # Finding hedging swaptions
         hedging_swaptions = [self.swaption_price(t, T_s_local[k:], K) for k in range(1,len(T_s_local)-1,1)]
-        self.i = self.i+1
 
         return sum([buc*hedg for buc, hedg in zip(default_buckets,hedging_swaptions)])
     
