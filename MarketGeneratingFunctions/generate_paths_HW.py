@@ -133,9 +133,9 @@ for i in range(0,N_paths):
     Q_s = [[pricer.Q(t,T) for t in t_s_base] for T in T_s]   # Here there must be room for performance improvement? These lists could be pre-allocated or something since we know that it's going to be a list of a list of floats, same for below??
     Swaptions = [[pricer.swaption_price(t,T_s_2,K) for t in t_s_base] for T_s_2 in [T_s[i:] for i in range(0,len(T_s)-1)]] # Maybe we could C compile this file? Should be a huge performance increase, but might be a headache since we need to track down and type hint everything
     CVA = [pricer.CVA(t,T_s,K) for t in t_s]
-    Swaps = [[pricer.swap_price(t,T_s_2,K) for t in t_s_base] for T_s_2 in [T_s[i:] for i in range(0,len(T_s)-1)]]
+    Swaps = [[pricer.swap_price(t,T_s_2,K) for t in t_s] for T_s_2 in [T_s[:-i] for i in range(1,len(T_s)-1)]]
 
-    paths.append(Path(t_s_base, lambdas, r, CVA, Q_s, Swaps, Swaptions)) # return Path(t_s, lambdas, r, CVA, Q_s, Swaps, Swaptions)
+    paths.append(Path(t_s_base, lambdas, r, CVA, Q_s, Swaps, Swaptions, K)) # return Path(t_s, lambdas, r, CVA, Q_s, Swaps, Swaptions)
  
 #paths = Parallel(n_jobs = 4)(delayed(process)(pathN) for pathN in range(0,N_paths)) 
 end_time = time.time()

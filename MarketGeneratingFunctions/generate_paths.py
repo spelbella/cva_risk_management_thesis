@@ -127,7 +127,7 @@ def process(pathN):
     CVA = [pricer.CVA(t,T_s,K) for t in t_s_base]
     Swaps = [[pricer.swap_price(t,T_s_2,K) for t in t_s_base] for T_s_2 in [T_s[i:] for i in range(0,len(T_s)-1)]]
 
-    return Path(t_s, lambdas, r, CVA, Q_s, Swaps, Swaptions)
+    return Path(t_s, lambdas, r, CVA, Q_s, Swaps, Swaptions, K)
 
 strt = time.time()
 paths = Parallel(n_jobs = 4)(delayed(process)(pathN) for pathN in range(0,N_paths)) 

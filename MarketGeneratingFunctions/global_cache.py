@@ -212,8 +212,8 @@ class Global_Cache_HW:
             ret = np.interp(t,self.theta_grid,self.thetas)
         return ret
     
-    def A(self, t, T, stp_density = 25, startup = False):
-        int_steps = min(max(5,round(stp_density*(T-t))),100)
+    def A(self, t, T, stp_density = 50, startup = False):
+        int_steps = min(max(10,round(stp_density*(T-t))),100)
         key = hash((np.round(t,15),float(np.round(T,15)),stp_density))
         if key in self.A_cache:
             ret = self.A_cache[key]

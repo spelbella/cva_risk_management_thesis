@@ -346,7 +346,7 @@ class PricingFunc_HW():
     
     # mu_v gets a cache since it's numerically integrating, but I'm not sure if the same mu is ever hit twice?
     def mu_v(self,t,T,r0):
-        n_steps = min(max(5,round(25*(T-t))),50)
+        n_steps = min(max(10,round(50*(T-t))),50)
         key = (round(t,15),float(round(T,15)),round(r0,15))
         if key in self.mu_v_cache:
             ret = self.mu_v_cache[key]
