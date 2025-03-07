@@ -101,8 +101,8 @@ params["sigma"] = sigma = np.sqrt(r0)/5
 params["rho"] = 0.8
 
 # Number of steps and Number of Paths total
-params["N"] = N = (T-t0)*128
-N_paths = 200
+params["N"] = N = (T-t0)*252
+N_paths = 10
 
 # Global base time grid, pre jump insertion
 t_s_base = np.linspace(t0,T,N)
@@ -122,10 +122,10 @@ def process(pathN):
     # Create a pricing object for this specific market
     pricer = pf.PricingFunc(params, gc, t_s, r, r_ongrid,lambdas, lambdas_ongrid)
     
-    Q_s = [[pricer.Q(t,T) for t in t_s] for T in T_s]   # Here there must be room for performance improvement? These lists could be pre-allocated or something since we know that it's going to be a list of a list of floats, same for below??
-    Swaptions = [[pricer.swaption_price(t,T_s_2,K) for t in t_s] for T_s_2 in [T_s[i:] for i in range(0,len(T_s)-1)]] # Maybe we could C compile this file? Should be a huge performance increase, but might be a headache since we need to track down and type hint everything
-    CVA = [pricer.CVA(t,T_s,K) for t in t_s]
-    Swaps = [[pricer.swap_price(t,T_s_2,K) for t in t_s] for T_s_2 in [T_s[i:] for i in range(0,len(T_s)-1)]]
+    Q_s = [[pricer.Q(t,T) for t in t_s_base] for T in T_s]   # Here there must be room for performance improvement? These lists could be pre-allocated or something since we know that it's going to be a list of a list of floats, same for below??
+    Swaptions = [[pricer.swaption_price(t,T_s_2,K) for t in t_s_base] for T_s_2 in [T_s[i:] for i in range(0,len(T_s)-1)]] # Maybe we could C compile this file? Should be a huge performance increase, but might be a headache since we need to track down and type hint everything
+    CVA = [pricer.CVA(t,T_s,K) for t in t_s_base]
+    Swaps = [[pricer.swap_price(t,T_s_2,K) for t in t_s_base] for T_s_2 in [T_s[i:] for i in range(0,len(T_s)-1)]]
 
     return Path(t_s, lambdas, r, CVA, Q_s, Swaps, Swaptions)
 
