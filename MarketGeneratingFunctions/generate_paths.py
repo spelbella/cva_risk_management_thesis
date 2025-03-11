@@ -21,7 +21,7 @@ import _pickle as pickle
 from global_cache import Global_Cache
 import base_from_gen as bg
 import pricing_func as pf
-from path_datatype import Path
+from MarketGeneratingFunctions.path_datatype import Path
 
 # C magic?
 #from numba import jit

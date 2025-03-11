@@ -1,9 +1,10 @@
 import gymnasium as gym
-from path_datatype import Path
+from gymnasium import wrappers as wrap
 import numpy as np
 
+from path_datatype import Path
+
 class tradingEng(gym.Env):
-    
     def __init__(self, paths):
         # The paths
         self.paths = paths
@@ -11,6 +12,7 @@ class tradingEng(gym.Env):
         # The currently looked at path indx
         self.pthIDX = 0
         self.currpth =  paths[self.pthIDX]
+        self.npths = len(paths)
 
         # The time index
         self.tIDX = 0
@@ -75,67 +77,89 @@ class tradingEng(gym.Env):
     def _get_info(self):
         return{
             "SqrdP&L": self.PnL()**2,
-            "P&L": self.PnL()
+            "P&L": self.PnL(),
+            "CVA": self.currpth.CVA[self.tIDX]
         }
     
     def reset(self, seed = None, options = None):
         self.tIDX = 0
         self.pthIDX = self.pthIDX + 1
-        if self.pthIDX > 1550:
+        if self.pthIDX >= self.npths:
             self.pthIDX = 0
         self.currpth = self.paths[self.pthIDX]
-        swaption_value_at0 = self.currpth.Swaptions[9][0]
         CVA_at_t0 = self.currpth.CVA[0]
-        self._agent_position = dict({
-                "Swaption Position" : [0.0001,0.000001,0.000001, 0.000001, 0.000001, 0.000001,0.00001,0.00001,CVA_at_t0/swaption_value_at0],
-                "Q Position" : [0.00001,0.000001,0.000001,0.000001,0.000001,0.000001,0.000001,0.000001,0.000001],
-        })
+
+        # Initialize the portfolio to some ratio
+        init_ratio  = np.ones(18)*(1/18)    # the initial value distribution, should probably be a delta hedge
+        action = self.vec_to_dict(init_ratio)
+        self._agent_position = self.norm_portfolio(action, value = CVA_at_t0)
 
         observation = self._get_obs()
         info = self._get_info()
 
         return observation, info
     
-    # The meat and potatoes
-    def step(self, action):
-        self.tIDX = self.tIDX + 1
-        actionl = action.copy()
-        # Force zero position in expired positions
-        for i in range(len(actionl["Swaption Position"])):
-            if self.currpth.t_s[self.tIDX]-2 > i:
-                actionl["Swaption Position"][i] = 0.0
-                actionl["Q Position"][i] = 0.0               
+    # Convert a non dict action into a dict
+    def vec_to_dict(self, action):
+        if not len(action) == 18:
+            raise ValueError('You passed an action of incorrect length to the enivironment, it should be 18 long in a normal numeric format like a list or ndarray')
+        swapts = action[0:9]
+        Qs = action[9:18]
+        return dict({"Swaption Position" : swapts, "Q Position" : Qs})
 
-        # Convert fraction of portfolio to amount of options
-        agent_position = dict()
-        agent_position["Swaption Position"] = np.zeros(9)
-        agent_position["Q Position"] = np.zeros(9)
-        swap_values = self.swaptions_now()
+    # Normalize a portfolio to have a consistent value 
+    def norm_portfolio(self, action, value = None):
+        if value == None:
+            value = self.posValue()
+
+        # Convert fraction of portfolio to amount of options with floating scale
         Q_values = self.Q_now()
-        for i in range(len(action["Swaption Position"])):
-            if not agent_position["Swaption Position"][i] <= 1e-16:
-                agent_position["Swaption Position"][i] = actionl["Swaption Position"][i]/(max(swap_values[i],1e-16))
-                agent_position["Q Position"][i] = actionl["Q Position"][i]/(max(Q_values[i],1e-16))  
+        swap_values = self.swaptions_now()
 
-        # Enforce value restraints
-        entry_value = self.posValue()
-        value_action = self.AposValue(agent_position)
-        scale = entry_value/value_action
+        # Buy number of shares to match portfolio fraction of value
+        for i in range(len(action["Swaption Position"])):
+            if not self.currpth.t_s[self.tIDX]-2 > i:
+                action["Swaption Position"][i] = action["Swaption Position"][i]/(max(swap_values[i],1e-16))
+                action["Q Position"][i] = action["Q Position"][i]/(max(Q_values[i],1e-16))  
+            else:        # Force zero position in expired positions
+                action["Swaption Position"][i] = 0.0
+                action["Q Position"][i] = 0.0    
+        
+        # Normalize Value / Enforce value restraints
+        value_action = self.AposValue(action)
+        scale = value/value_action
 
         scaled_action = dict({
-             "Swaption Position" : agent_position["Swaption Position"]*scale,
-             "Q Position" : agent_position["Q Position"]*scale,
+             "Swaption Position" : action["Swaption Position"]*scale,
+             "Q Position" : action["Q Position"]*scale,
         })
-        self._agent_position = scaled_action
 
-        # End the environment after we reach year 9
-        terminated = self.currpth.t_s[self.tIDX] > 9
-        truncated = False
+        return scaled_action
+
+    # The meat and potatoes
+    def step(self, action):
+        # Format action and try to avoid sideeffects
+        actionl = action.copy()
+        if not isinstance(actionl, dict):
+            actionl = self.vec_to_dict(actionl)
+        
+        # Step Time forward
+        self.tIDX = self.tIDX + 1     
+
+        # Set the new action
+        actionl = self.norm_portfolio(actionl)
+        self._agent_position = actionl
+
+        # Observe the reward, which comes from the previous action
         reward = -self.PnL()**2
         info = self._get_info()
         observation = self._get_obs()
 
+        # End the environment after we reach year 9
+        terminated = self.currpth.t_s[self.tIDX] > 9
+        truncated = False
+
         if terminated:
             self.reset()
 
-        return observation, reward, terminated, truncated, info
+        return wrap.FlattenObservation(observation), reward, terminated, truncated, info
