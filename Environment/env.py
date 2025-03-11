@@ -113,8 +113,9 @@ class tradingEng(gym.Env):
         swap_values = self.swaptions_now()
         Q_values = self.Q_now()
         for i in range(len(action["Swaption Position"])):
-            agent_position["Swaption Position"][i] = actionl["Swaption Position"][i]/(max(swap_values[i],1e-16))
-            agent_position["Q Position"][i] = actionl["Q Position"][i]/(max(Q_values[i],1e-16))  
+            if not agent_position["Swaption Position"][i] <= 1e-16:
+                agent_position["Swaption Position"][i] = actionl["Swaption Position"][i]/(max(swap_values[i],1e-16))
+                agent_position["Q Position"][i] = actionl["Q Position"][i]/(max(Q_values[i],1e-16))  
 
         # Enforce value restraints
         entry_value = self.posValue()
