@@ -1,6 +1,7 @@
 import gymnasium as gym
 from gymnasium import wrappers as wrap
 import numpy as np
+import scipy as sp
 
 from path_datatype import Path
 
@@ -106,6 +107,8 @@ class tradingEng(gym.Env):
         init_ratio  = np.ones(18)*(1/18)    # the initial value distribution, should probably be a delta hedge
         action = self.vec_to_dict(init_ratio)
         self._agent_position = self.norm_portfolio(action, value = CVA_at_t0)
+        print(self._agent_position)
+        print(self._get_obs)
 
         observation = self._get_obs()
         info = self._get_info()
@@ -131,7 +134,7 @@ class tradingEng(gym.Env):
 
         # Buy number of shares to match portfolio fraction of value
         for i in range(len(action["Swaption Position"])):
-            if self.currpth.t_s[self.tIDX]-0.995> i:
+            if self.currpth.t_s[self.tIDX]-1.005> i:
                 action["Swaption Position"][i] = action["Swaption Position"][i]/(max(swap_values[i],1e-16))
                 action["Q Position"][i] = action["Q Position"][i]/(max(Q_values[i],1e-16))  
             else:        # Force zero position in expired positions
@@ -154,6 +157,7 @@ class tradingEng(gym.Env):
         # Format action and try to avoid sideeffects
         actionl = action.copy()
         if not isinstance(actionl, dict):
+            actionl = sp.softmax(actionl)
             actionl = self.vec_to_dict(actionl)
         
         # Step Time forward
