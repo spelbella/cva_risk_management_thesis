@@ -4,9 +4,7 @@ MarketGeneratingFunctions/__pycache__/path_datatype.cpython-312.pyc
 MarketGeneratingFunctions/__pycache__/pricing_func.cpython-312.pyc
 MarketGeneratingFunctions/1.6kRunDemo.pkl
 Demos/1.6kRunDemo.pkl
-
-1.6kRunDemo.pkl
-
+ 1.6kRunDemo.pkl
 MarketGeneratingFunctions/__pycache__/base_from_gen.cpython-311.pyc
 MarketGeneratingFunctions/__pycache__/global_cache.cpython-311.pyc
 MarketGeneratingFunctions/__pycache__/path_datatype.cpython-311.pyc
@@ -14,3 +12,6 @@ MarketGeneratingFunctions/__pycache__/pricing_func.cpython-311.pyc
 1HWRunDemo.pkl
 .vscode/settings.json
 Environment/__pycache__/env.cpython-311.pyc
+LearningDDPG/ContCartPoleDDPGStableBaselines
+Environment/1.6kRunDemo.pkl
+LearningDDPG/OurEnv/1.6kRunDemo.pkl

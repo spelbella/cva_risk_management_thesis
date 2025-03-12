@@ -20,40 +20,55 @@ class tradingEng(gym.Env):
         # Tracks the last held position
         self._agent_position = dict()
 
-        # The Observation space, for now let's let it look at the value of the 9 swaptions, the 9 (non constant) Qs, it's portfolio in each of those, and the CVA(strictly shouldn't be nessecary but eh)
-        self.observation_space = gym.spaces.Dict(
-            {
-                "Swaption Position" : gym.spaces.Box(0, 9, shape=(1,), dtype=float),
-                "Q Position" : gym.spaces.Box(0, 9, shape=(1,), dtype=float),
-                "Swaption Value" : gym.spaces.Box(0, 9, shape=(1,), dtype=float),
-                "Q Value" : gym.spaces.Box(0, 9, shape=(1,), dtype=float),
-                "r" : gym.spaces.Box(0, 1, shape=(1,), dtype=float),
-            }
-        )
+        # The Observation space, for now let's let it look at the value of the 9 swaptions, the 9 (non constant) Qs, it's portfolio in each of those, and r (37 actions)
+        lower = np.concatenate([np.zeros(36), -np.inf])
+        upper = np.concatenate([np.ones(18),np.inf*np.ones(9),np.ones(9),np.inf])
+        print(lower)
+        self.observation_space = gym.spaces.Box(lower = lower,upper = upper, dtype=float)
+        #self.observation_space = gym.spaces.Dict(
+        #    {
+        #        "Swaption Position" : gym.spaces.Box(low = 0, high = 1, shape=(9,), dtype=float),
+        #        "Q Position" : gym.spaces.Box(low = 0, 1, shape=(9,), dtype=float),
+        #        "Swaption Value" : gym.spaces.Box(low = 0, high = np.inf, shape=(9,), dtype=float),
+        #        "Q Value" : gym.spaces.Box(low = 0, high = 1, shape=(9,), dtype=float),
+        #        "r" : gym.spaces.Box(low = -np.inf, high = np.inf, shape=(1,), dtype=float),
+        #    }
+        #)
 
-        # The action space, let's let the action space be to take a new position
-        self.action_space = gym.spaces.Dict(
-            {
-                "Swaption Position" : gym.spaces.Box(0, 9, shape=(1,), dtype=float),
-                "Q Position" : gym.spaces.Box(0, 9, shape=(1,), dtype=float),
-            }
-        )
+        # The action space, let's let the action space be to take a new position -> 18 dim
+        lowera = np.concatenate([np.zeros(18)])
+        uppera = np.concatenate([np.ones(18)])
+        print(uppera)
+        self.action_space = gym.spaces.Box(lower = lowera,upper = uppera, dtype=float)
+        #self.action_space = gym.spaces.Dict(
+        #    {
+        #        "Swaption Position" : gym.spaces.Box(lower = 0, upper = 1, shape=(9,), dtype=float),
+        #        "Q Position" : gym.spaces.Box(lower = 0, upper = 1, shape=(9,), dtype=float),
+        #    }
+        #)
 
         self.reset()
 
     # Constructing observations
     def _get_obs(self):
-        return {
-                    "Swaption Position": self._agent_position["Swaption Position"],
-                    "Q Position": self._agent_position["Q Position"],
-                    "Swaption Value" : self.swaptions_now(),
-                    "Q Value" : self.Q_now(),
-                    "r" : self.currpth.r[self.tIDX]
-                }
+        return np.concatenate([
+                    self._agent_position["Swaption Position"],
+                    self._agent_position["Q Position"],
+                    self.swaptions_now(),
+                    self.Q_now(),
+                    self.currpth.r[self.tIDX]
+                ])
+        #return {
+        #            "Swaption Position": self._agent_position["Swaption Position"],
+        #            "Q Position": self._agent_position["Q Position"],
+        #            "Swaption Value" : self.swaptions_now(),
+        #            "Q Value" : self.Q_now(),
+        #            "r" : self.currpth.r[self.tIDX]
+        #        }
     
     def swaptions_now(self):
         try:
-            return [self.currpth.Swaptions[i][self.tIDX] for i in range(0,9)]
+            return [self.currpth.Swaptions[i][self.tIDX] for i in range(1,10)]
         except:
             print(self.tIDX)
         finally:
