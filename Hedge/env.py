@@ -157,7 +157,7 @@ class tradingEng(gym.Env):
         # Format action and try to avoid sideeffects
         actionl = action.copy()
         if not isinstance(actionl, dict):
-            actionl = sp.softmax(actionl)
+            actionl = sp.special.softmax(actionl)
             actionl = self.vec_to_dict(actionl)
         
         # Step Time forward
