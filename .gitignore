@@ -14,3 +14,4 @@ MarketGeneratingFunctions/__pycache__/pricing_func.cpython-311.pyc
 1HWRunDemo.pkl
 .vscode/settings.json
 Environment/__pycache__/env.cpython-311.pyc
+*/__pycache__/*
