@@ -21,7 +21,7 @@ import _pickle as pickle
 from global_cache import Global_Cache
 import base_from_gen as bg
 import pricing_func as pf
-from MarketGeneratingFunctions.path_datatype import Path
+from path_datatype import Path
 
 # C magic?
 #from numba import jit
@@ -102,7 +102,7 @@ params["rho"] = 0.8
 
 # Number of steps and Number of Paths total
 params["N"] = N = (T-t0)*252
-N_paths = 10
+N_paths = 200
 
 # Global base time grid, pre jump insertion
 t_s_base = np.linspace(t0,T,N)
@@ -127,7 +127,7 @@ def process(pathN):
     CVA = [pricer.CVA(t,T_s,K) for t in t_s_base]
     Swaps = [[pricer.swap_price(t,T_s_2,K) for t in t_s_base] for T_s_2 in [T_s[i:] for i in range(0,len(T_s)-1)]]
 
-    return Path(t_s, lambdas, r, CVA, Q_s, Swaps, Swaptions, K)
+    return Path(t_s_base, lambdas, r, CVA, Q_s, Swaps, Swaptions, K)
 
 strt = time.time()
 paths = Parallel(n_jobs = 4)(delayed(process)(pathN) for pathN in range(0,N_paths)) 
@@ -136,5 +136,5 @@ end_time = time.time()
 print("Total Time: %s" %(end_time - strt))
 print("Average Time Per Path %s: " %((end_time - strt)/N_paths))
 
-#with open("3kRunDemo.pkl","wb") as fp:
-#    pickle.dump(paths,fp)
+with open("200RunDemo.pkl","wb") as fp:
+    pickle.dump(paths,fp)

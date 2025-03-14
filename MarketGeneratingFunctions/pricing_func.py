@@ -82,7 +82,9 @@ class PricingFunc():
 
     # Value of a put option on a ZCB, option expiry T before or at payout date of ZCB T + tau, for call pass type = 0 for put type = 1
     def VZCB(self,t,T,tau,K,type):
-        key = hash((round(t,15),round(T,15),round(tau,15),round(K,15),type))
+        if t > T:
+            return 0.0
+        key = hash((round(t+0.0,10),round(T,10),round(tau+0.0,10),round(K,10),type))
         rt = self.r_time(t)
         if key in self.ZCBV_cache:
             val = self.ZCBV_cache[key]
@@ -150,6 +152,8 @@ class PricingFunc():
 
     # Swaption Pricing
     def swaption_price(self, t, T_s, K):
+        T_s = T_s.copy()
+        [round(T_s[i]) for i in range(len(T_s)-1) if T_s[i+1] > t] + [T_s[-1]]
         """Sloppy Caching Code Begins"""
         key = str((round(t,15),str(np.asarray(T_s).astype(float)),round(K,15)))
         if key in self.Swaption_cache:
@@ -207,9 +211,11 @@ class PricingFunc():
             self.lambda_ongrid[hash(t)] = lambd
             return lambd
     def Q(self,t,T):
-        key = hash((round(t,15),round(T,15)))
+        key = hash((round(t+0.0,10),round(T+0.0,10)))
         if key in self.Q_cache:
             Q_val = self.Q_cache[key]
+        elif t > T:
+            Q_val = 1.0
         else:
             lambd = self.lambda_from_t(t)
             Q_val = self.alpha_hat(t,T)*np.exp(-self.beta_hat(t,T)*lambd) *(T>t) + (t>=T)
@@ -218,7 +224,7 @@ class PricingFunc():
     
     # Finally we can find the CVA
     # CVA deserves a full func, since there is some efficiency to be won, and it's both critical and hard to test
-    def CVA(self, t, T_s, K, adj = False):
+    def CVA(self, t, T_s, K):
         # Args:
         # t, the current time/the filtration time
         # rt, the current interest rate
@@ -227,28 +233,22 @@ class PricingFunc():
         # lambd, the current probability of default, the rest of the factors needed to find Q come from the model which Q already "knows"
         # Returns: 
         # The CVA estimate, a float
-        lambd = self.lambda_from_t(t)
-
         # First lets rewrite the T_s vector into a T_s vector where all the payments are actually still in the future, and it starts at the last passed adjustment date
-        T_s_local = T_s.copy()
-        T_s_local = np.append(T_s_local,T_s[-1]+1000)
-        T_s_local = [T_s_local[i] for i in range(len(T_s_local)-1) if T_s_local[i+1] > t]
+        T_s = T_s.copy()
+        T_s = [T_s[i] for i in range(len(T_s)-1) if T_s[i+1] > t] + [T_s[-1]]
+    
+        Q_vec = [self.Q(t,T) for T in T_s] #[Q(T_0), Q(T_1), Q(T_2), Q(T_3) ..., Q_(T_n-1)]
+        Buckets = [Q_vec[k-1] - Q_vec[k] for k in range(1,len(Q_vec))] # [(Q(T_0) - Q(T_1), (Q(T_1) - Q(T_2)), ..., (Q(T_n-2) - Q(T_n-1))]
+        Swaptions = [self.swaption_price(t,T_s[k:],K) for k in range(0,len(T_s)-1)] #[Spt(T_1), Spt(T_2), Spt(T_3), Spt(T_4), ..., Spt(T_n-1)]
 
-        # Then we find the probability of default before each payment given that we haven't defaulted up to now, allowing the probability to default in the first bucket to extend to t instead of T
-        T_s_proxy = T_s_local.copy()
-        if t > T_s_local[0]:
-            T_s_proxy = T_s_local[1:]
-            T_s_proxy[0] = t
-        default_after = [self.Q(t,T_s_proxy[k]) for k in range(0,len(T_s_proxy),1)]
-        default_buckets = [default_after[k-1] - default_after[k] for k in range(1,len(T_s_proxy))]
-        
-        # Finding hedging swaptions
-        hedging_swaptions = [self.swaption_price(t, T_s_local[k:], K) for k in range(1,len(T_s_local)-1,1)]
-        if adj:
-            hedging_swaptions.append(self.caplet_price(t,T_s_local[0],T_s_local[1],K))
-            default_buckets.append(1-self.Q(t,T_s_local[1],lambd))
+        if t > T_s[0] and len(T_s) > 2:
+            # Trim the zero value swaption and it's bucket
+            Swaptions = Swaptions[1:]
+            Buckets = Buckets[1:]
+            # The first active bucket goes from Q(T_a+2 > tau > T_a+1) to Q(T_a+2 > tau > T_a) to cover the gap [Recall Q(tau > T_a) := 1]
+            Buckets[0] = 1 - Q_vec[2] 
 
-        return sum([buc*hedg for buc, hedg in zip(default_buckets,hedging_swaptions)])
+        return np.inner(Buckets,Swaptions)
     
 """
 Hull White pricing function, gives the prices we're interested in for a given market passed using r, r_ongrid, lambdas and lambda_ongrid
@@ -472,7 +472,8 @@ class PricingFunc_HW():
         key = hash((round(t,15),round(T,15)))
         if key in self.Q_cache:
             Q_val = self.Q_cache[key]
-            #self.times_Qcache = self.times_Qcache + 1
+        elif t > T:
+            Q_val = 1.0
         else:
             lambd = self.lambda_from_t(t)
             Q_val = self.alpha_hat(t,T)*np.exp(-self.beta_hat(t,T)*lambd) *(T>t) + (t>=T)
@@ -482,7 +483,7 @@ class PricingFunc_HW():
     
     # Finally we can find the CVA
     # CVA deserves a full func, since there is some efficiency to be won, and it's both critical and hard to test
-    def CVA(self, t, T_s, K):
+    def CVA(self, t, T_s, K, adj = False):
         # Args:
         # t, the current time/the filtration time
         # rt, the current interest rate
@@ -491,24 +492,22 @@ class PricingFunc_HW():
         # lambd, the current probability of default, the rest of the factors needed to find Q come from the model which Q already "knows"
         # Returns: 
         # The CVA estimate, a float
-
         # First lets rewrite the T_s vector into a T_s vector where all the payments are actually still in the future, and it starts at the last passed adjustment date
-        T_s_local = T_s.copy()
-        T_s_local = np.append(T_s_local,T_s[-1]+1000)
-        T_s_local = [T_s_local[i] for i in range(len(T_s_local)-1) if T_s_local[i+1] > t]
+        T_s = T_s.copy()
+        T_s = [T_s[i] for i in range(len(T_s)-1) if T_s[i+1] > t] + [T_s[-1]]
+    
+        Q_vec = [self.Q(t,T) for T in T_s] #[Q(T_0), Q(T_1), Q(T_2), Q(T_3) ..., Q_(T_n-1)]
+        Buckets = [Q_vec[k-1] - Q_vec[k] for k in range(1,len(Q_vec))] # [(Q(T_0) - Q(T_1), (Q(T_1) - Q(T_2)), ..., (Q(T_n-2) - Q(T_n-1))]
+        Swaptions = [self.swaption_price(t,T_s[k:],K) for k in range(1,len(T_s))] #[Spt(T_1), Spt(T_2), Spt(T_3), Spt(T_4), ..., Spt(T_n-1)]
 
-        # Then we find the probability of default before each payment given that we haven't defaulted up to now, allowing the probability to default in the first bucket to extend to t instead of T
-        T_s_proxy = T_s_local.copy()
-        if t > T_s_local[0]:
-            T_s_proxy = T_s_local[1:]
-            T_s_proxy[0] = t
-        default_after = [self.Q(t,T_s_proxy[k]) for k in range(0,len(T_s_proxy),1)]
-        default_buckets = [default_after[k-1] - default_after[k] for k in range(1,len(T_s_proxy))]
-        
-        # Finding hedging swaptions
-        hedging_swaptions = [self.swaption_price(t, T_s_local[k:], K) for k in range(1,len(T_s_local)-1,1)]
+        if t > T_s[0] and len(T_s) > 2:
+            # Trim the zero value swaption and it's bucket
+            Swaptions = Swaptions[1:]
+            Buckets = Buckets[1:]
+            # The first active bucket goes from Q(T_a+2 > tau > T_a+1) to Q(T_a+2 > tau > T_a) to cover the gap [Recall Q(tau > T_a) := 1]
+            Buckets[0] = 1 - Q_vec[2] 
 
-        return sum([buc*hedg for buc, hedg in zip(default_buckets,hedging_swaptions)])
+        return np.inner(Buckets,Swaptions)
     
 
 """ TO DO, add efficiency to caps, find what's slow in HW pricing and look for speedups, add cap padded CVA and fully cap padded CVA to both"""
