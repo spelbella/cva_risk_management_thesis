@@ -16,8 +16,9 @@ class tradingEng(gym.Env):
         self.observation_space = gym.spaces.Box(low = lower,high = upper, dtype=np.float32)
 
         # The action space, let's let the action space be to take a new position -> 18 dim
-        lowera = np.concatenate([np.zeros(18)])
-        uppera = np.concatenate([np.ones(18)])
+        lowera = np.concatenate([-1*np.ones(18)])
+        #lowera = np.concatenate([np.zeros(18)])
+        uppera = np.concatenate([1*np.ones(18)])
         self.action_space = gym.spaces.Box(low = lowera,high = uppera, dtype=np.float32)
 
     def reset(self, seed = None, options = None):
@@ -80,36 +81,6 @@ class tradingEng(gym.Env):
         Qs = action[9:18]
         return dict({"Swaption Position" : swapts, "Q Position" : Qs})
 
-    # Normalize a portfolio to have a consistent value 
-    def norm_portfolio(self, action, value = None):
-        if value == None:
-            value = self.posValue()
-
-        # Convert fraction of portfolio to amount of options with floating scale
-        Q_values = self.Q_now()
-        swap_values = self.swaptions_now()
-
-        # Buy number of shares to match portfolio fraction of value
-        for i in range(len(action["Swaption Position"])):
-            if self.currpth.t_s[self.tIDX]-1.005> i:
-                action["Swaption Position"][i] = action["Swaption Position"][i]/(max(swap_values[i],1e-16))
-                action["Q Position"][i] = action["Q Position"][i]/(max(Q_values[i],1e-16))  
-            else:        # Force zero position in expired positions
-                action["Swaption Position"][i] = 0.0
-                action["Q Position"][i] = 0.0    
-        
-        # Normalize Value / Enforce value restraints
-        value_action = self.AposValue(action)
-        #scale = value/value_action
-        scale = value / value_action if value_action != 0 else 1.0 #ÄNDRAT
-
-        scaled_action = dict({
-             "Swaption Position" : action["Swaption Position"]*scale,
-             "Q Position" : action["Q Position"]*scale,
-        })
-
-        return scaled_action
-
     # The meat and potatoes
     def step(self, action):
         # Format action and try to avoid sideeffects
@@ -131,7 +102,7 @@ class tradingEng(gym.Env):
         observation = self._get_obs()
   
         # End the environment after we reach year 9
-        terminated = bool(self.currpth.t_s[self.tIDX] >= 10)
+        terminated = bool(self.currpth.t_s[self.tIDX] >= 9)
         truncated = False
 
         return observation, reward, terminated, truncated, info
