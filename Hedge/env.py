@@ -9,6 +9,8 @@ class tradingEng(gym.Env):
     def __init__(self, paths):
         # The paths
         self.paths = paths
+        self.pthIDX = 0
+        self.npths = len(self.paths)
 
         # The Observation space, for now let's let it look at the value of the 9 swaptions, the 9 (non constant) Qs, it's portfolio in each of those, and r (37 actions)
         lower = np.concatenate([np.zeros(36), -np.inf*np.ones(1)])
@@ -22,10 +24,12 @@ class tradingEng(gym.Env):
         self.action_space = gym.spaces.Box(low = lowera,high = uppera, dtype=np.float32)
 
     def reset(self, seed = None, options = None):
-        self.pthIDX = 0
         self.tIDX = 0
+        self.pthIDX = self.pthIDX + 1
+        if self.pthIDX >= self.npths:
+            self.pthIDX = 0
+        #print("reset was called", self.pthIDX)
         self.currpth =  self.paths[self.pthIDX]
-        self.npths = len(self.paths)
         # Tracks the last held position
         self._agent_position = dict()
         self._agent_position_old = dict()
@@ -89,12 +93,12 @@ class tradingEng(gym.Env):
             actionl = self.vec_to_dict(actionl)
         
         # Step Time forward
-        self.tIDX = int(self.tIDX + 1)  
-
+        self.tIDX = int(self.tIDX + 1)
         self._agent_position_old = self._agent_position
         self._agent_price_old = self._agent_price
         self._agent_position = actionl
         self._agent_price = self.prices()
+        
 
         # Observe the reward, which comes from the previous action
         reward = -self.PnL()**2
@@ -102,8 +106,10 @@ class tradingEng(gym.Env):
         observation = self._get_obs()
   
         # End the environment after we reach year 9
-        terminated = bool(self.currpth.t_s[self.tIDX] >= 9)
+        terminated = bool(self.currpth.t_s[self.tIDX] > 9)
         truncated = False
+        if terminated:
+            self.reset()
 
         return observation, reward, terminated, truncated, info
     
