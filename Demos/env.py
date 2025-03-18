@@ -2,7 +2,13 @@ import gymnasium as gym
 from gymnasium import wrappers as wrap
 import numpy as np
 
-from path_datatype import Path
+from MarketGeneratingFunctions import Path
+
+'''
+    We can parallelize this in two ways that I see,
+    either each reset pulls a random new path or, when we start the parllel run we 
+    initiate the environment with an offset, to do that add that functionallity to seed :).
+'''
 
 class tradingEng(gym.Env):
     def __init__(self, paths):
