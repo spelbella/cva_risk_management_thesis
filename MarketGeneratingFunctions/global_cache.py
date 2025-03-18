@@ -139,7 +139,7 @@ class Global_Cache_HW:
         self.A_cache = dict()
         self.Khat_cache = dict()
         self.rstar_cache = dict()
-
+      
         # Fill the Cache 
         for t in t_s:
             # Fill theta and P0T Cache these should intuitively be done before theta but the order doesn't actually matter
