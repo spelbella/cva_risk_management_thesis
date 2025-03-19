@@ -90,7 +90,7 @@ class tradingEng(gym.Env):
     # The meat and potatoes
     def step(self, action):
         # Format action and try to avoid sideeffects
-        actionl = action.copy()/1000000
+        actionl = action.copy()/100000
         if not isinstance(actionl, dict):
             actionl = self.vec_to_dict(actionl)
         
