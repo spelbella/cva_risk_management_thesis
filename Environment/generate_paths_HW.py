@@ -97,8 +97,8 @@ params["gamma"] = 0 # With expected size mu/5
 
 # Short rate params
 params["r0"] = r0 = 0.045
-params["alpha"] = alpha = 1
-params["sigma"] = sigma = np.sqrt(r0)/5
+params["alpha"] = alpha = 0.018 # 1
+params["sigma"] = sigma = 0.007 #np.sqrt(r0)/5
 
 # Covariance
 params["rho"] = 1
@@ -107,8 +107,11 @@ params["rho"] = 1
 params["N"] = N = (10-t0)*251
 N_paths = 3#
 
-ti = [1/4, 1/2, 1, 2, 5, 10, 30]
-Pi = [np.exp(1/100 * k) for k in [4.268, 4.224, 4.001, 3.898, 3.927, 4.140, 4.457]]
+
+ti = [6/12, 7/12, 8/12, 9/12, 15/12, 5, 30]
+# ti = [1/4, 1/2, 1, 2, 5, 10, 30]
+Pi = [np.exp(1/100 * k) for k in [2.421, 2.336, 2.296, 2.241, 2.172, 2.491, 2.604]]
+# Pi = [np.exp(1/100 * k) for k in [4.268, 4.224, 4.001, 3.898, 3.927, 4.140, 4.457]] bUs treasuries
 calib_data = {"ti":ti,"Pi":Pi}
 
 # Global base time grid, pre jump insertion
@@ -136,7 +139,7 @@ for i in range(0,N_paths):
     
     #Price stuff
     Q_s = [[pricer.Q(t,T) for t in t_s_base] for T in T_s]   # Here there must be room for performance improvement? These lists could be pre-allocated or something since we know that it's going to be a list of a list of floats, same for below??
-    Swaptions = [[pricer.swaption_price(t,T_s_2,K) for t in t_s_base] for T_s_2 in [T_s[i:] for i in range(0,len(T_s)-1)]] # Maybe we could C compile this file? Should be a huge performance increase, but might be a headache since we need to track down and type hint everything
+    Swaptions = [[pricer.swaption_price(t,T_s_2,K) for t in t_s_base] for T_s_2 in [T_s[i:] for i in range(1,len(T_s)-1)]] # Maybe we could C compile this file? Should be a huge performance increase, but might be a headache since we need to track down and type hint everything
     CVA = [pricer.CVA(t,T_s,K) for t in t_s_base]
     #Swaps = [[pricer.swap_price(t,T_s_2,K) for t in t_s_base] for T_s_2 in [(T_s + [0])[:-i] for i in range(1,len(T_s))]]
 
