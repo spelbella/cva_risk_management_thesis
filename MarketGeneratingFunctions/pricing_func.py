@@ -119,7 +119,7 @@ class PricingFunc():
             return 0
         
         # Check Cache
-        key = hash((round(t,15),str(T_s),round(K,15)))
+        key = (round(t,15),T_s[0], T_s[-1],round(K,15))
         if key in self.Swap_cache:
             val = self.Swap_cache[key]
         else:
@@ -155,7 +155,7 @@ class PricingFunc():
         T_s = T_s.copy()
         [round(T_s[i]) for i in range(len(T_s)-1) if T_s[i+1] > t] + [T_s[-1]]
         """Sloppy Caching Code Begins"""
-        key = str((round(t,15),str(np.asarray(T_s).astype(float)),round(K,15)))
+        key = (round(t,15),T_s[0], T_s[-1],round(K,15))
         if key in self.Swaption_cache:
             return self.Swaption_cache[key]
         """Sloppy Caching Code Ends"""
@@ -404,7 +404,7 @@ class PricingFunc_HW():
             return 0
         
         # Check Cache
-        key = hash((round(t,15),str(T_s),round(K,15)))
+        key = (round(t,15),T_s[0], T_s[-1],round(K,15))
         if key in self.Swap_cache:
             val = self.Swap_cache[key]
             #self.times_Swcache = self.times_Swcache + 1
@@ -442,7 +442,7 @@ class PricingFunc_HW():
         T_m = T_s[0] # The entrance date
         dates = T_s[1:] # The payment dates
         cashs = self.cashflows(K, T_s) # The Cashflows
-        key = hash((round(t,15),str(np.float32(T_s)),round(K,15)))
+        key = (round(t,15),T_s[0], T_s[-1],round(K,15))
         if key in self.Swaption_cache:
             value = self.Swaption_cache[key]
             #self.times_Swpcache = self.times_Swpcache + 1

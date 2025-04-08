@@ -236,7 +236,7 @@ class Global_Cache_HW:
         return ret
     
     def Khat(self,t,T, rstar, startup = False):
-        key = str((float(np.round(t,15)),float(np.round(T,15)),np.round(rstar,15)))
+        key = ((float(np.round(t,15)),float(np.round(T,15)),np.round(rstar,15)))
         if key in self.Khat_cache:
             ret = self.Khat_cache[key]
         elif startup:
@@ -249,7 +249,7 @@ class Global_Cache_HW:
         return ret
     
     def rstar(self,T_s,K, startup = False):
-        key = hash((str(np.float32(T_s)),K))
+        key = (T_s[0], T_s[-1],K)
         if key in self.rstar_cache:
             ret = self.rstar_cache[key]
         elif startup:  
@@ -260,7 +260,7 @@ class Global_Cache_HW:
             dates = T_s[1:]
             optim = lambda rstarl: minimize(cashflows, dates, Tm, rstarl)
             ret = optimize.newton(optim, 0)
-            self.rstar_cache[key] =ret
+            self.rstar_cache[key] = ret
         else:
             # Solve for rstar
             minimize = lambda cashflows, dates, Tm, rstar: 1 - sum([c*np.e**(self.A(Tm,date) + self.B(Tm,date)*rstar) for c, date in zip(cashflows,dates)])

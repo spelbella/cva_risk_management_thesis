@@ -36,7 +36,7 @@ The Goal of this File is to generate a bunch of sample paths for the value of ou
 
 I'm setting the preliminary goal of around 1600 paths per hour since this gives us a reasonably fast
 rate (We can get a testable set in about an hour, and a set that should be large enough to be useable over 
-a day 24*1600 = 38400 paths)
+a day 24*1600 = 38400 paths)s
 
 The 10 year HullWhite model takes ~30s per single core run, so we can get around 500 runs per hour.
 ----------- What are we finding and saving -----------
@@ -84,7 +84,7 @@ to efficiently generate our paths
 params = dict()
 
 params["t0"] = t0 = 0
-params["T"] = T = 10
+params["T"] = T = 30
 
 # Intensity params
 params["lambda0"] = lambda0 = 0.01
@@ -104,8 +104,8 @@ params["sigma"] = sigma = np.sqrt(r0)/5
 params["rho"] = 1
 
 # Number of steps and Number of Paths total
-params["N"] = N = (T-t0)*252
-N_paths = 20#
+params["N"] = N = (10-t0)*251
+N_paths = 3#
 
 ti = [1/4, 1/2, 1, 2, 5, 10, 30]
 Pi = [np.exp(1/100 * k) for k in [4.268, 4.224, 4.001, 3.898, 3.927, 4.140, 4.457]]
@@ -113,7 +113,7 @@ calib_data = {"ti":ti,"Pi":Pi}
 
 # Global base time grid, pre jump insertion
 t_s_base = np.linspace(t0,T,N)
-T_s = np.arange(0,11,1)
+T_s = np.arange(0,31,1)
 
 #########################################
 ## Define Globally shareable Caches    ##
@@ -138,9 +138,9 @@ for i in range(0,N_paths):
     Q_s = [[pricer.Q(t,T) for t in t_s_base] for T in T_s]   # Here there must be room for performance improvement? These lists could be pre-allocated or something since we know that it's going to be a list of a list of floats, same for below??
     Swaptions = [[pricer.swaption_price(t,T_s_2,K) for t in t_s_base] for T_s_2 in [T_s[i:] for i in range(0,len(T_s)-1)]] # Maybe we could C compile this file? Should be a huge performance increase, but might be a headache since we need to track down and type hint everything
     CVA = [pricer.CVA(t,T_s,K) for t in t_s_base]
-    Swaps = [[pricer.swap_price(t,T_s_2,K) for t in t_s_base] for T_s_2 in [T_s[:-i] for i in range(0,len(T_s)-1)]]
+    #Swaps = [[pricer.swap_price(t,T_s_2,K) for t in t_s_base] for T_s_2 in [(T_s + [0])[:-i] for i in range(1,len(T_s))]]
 
-    paths.append(Path(t_s_base, lambdas, r, CVA, Q_s, Swaps, Swaptions, K)) # return Path(t_s, lambdas, r, CVA, Q_s, Swaps, Swaptions)
+    paths.append(Path(t_s_base, lambdas, r, CVA, Q_s, None, Swaptions, K)) # return Path(t_s, lambdas, r, CVA, Q_s, Swaps, Swaptions)
  
 #paths = Parallel(n_jobs = 4)(delayed(process)(pathN) for pathN in range(0,N_paths)) 
 end_time = time.time()
