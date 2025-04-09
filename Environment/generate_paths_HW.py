@@ -84,7 +84,7 @@ to efficiently generate our paths
 params = dict()
 
 params["t0"] = t0 = 0
-params["T"] = T = 30
+params["T"] = T = 20
 
 # Intensity params
 params["lambda0"] = lambda0 = 0.01
@@ -105,7 +105,7 @@ params["rho"] = 1
 
 # Number of steps and Number of Paths total
 params["N"] = N = (10-t0)*251
-N_paths = 3#
+N_paths = 10#
 
 
 ti = [6/12, 7/12, 8/12, 9/12, 15/12, 5, 30]
@@ -115,8 +115,8 @@ Pi = [np.exp(1/100 * k) for k in [2.421, 2.336, 2.296, 2.241, 2.172, 2.491, 2.60
 calib_data = {"ti":ti,"Pi":Pi}
 
 # Global base time grid, pre jump insertion
-t_s_base = np.linspace(t0,T,N)
-T_s = np.arange(0,31,1)
+t_s_base = np.linspace(t0,10,N)
+T_s = np.arange(0,21,1)
 
 #########################################
 ## Define Globally shareable Caches    ##
@@ -130,7 +130,7 @@ K = gc.K
 paths = []
 
 strt = time.time()
-for i in range(0,N_paths):
+def process(pathN): #for i in range(0,N_paths):
     # Generate the market grid and basic r and lambda
     [t_s,r,lambdas,r_ongrid,lambdas_ongrid] = bg.mkt_base_from_HW_cache(gc)
     
@@ -143,15 +143,15 @@ for i in range(0,N_paths):
     CVA = [pricer.CVA(t,T_s,K) for t in t_s_base]
     #Swaps = [[pricer.swap_price(t,T_s_2,K) for t in t_s_base] for T_s_2 in [(T_s + [0])[:-i] for i in range(1,len(T_s))]]
 
-    paths.append(Path(t_s_base, lambdas, r, CVA, Q_s, None, Swaptions, K)) # return Path(t_s, lambdas, r, CVA, Q_s, Swaps, Swaptions)
+    return Path(t_s_base, lambdas, r, CVA, Q_s, None, Swaptions, K) # return Path(t_s, lambdas, r, CVA, Q_s, Swaps, Swaptions)
  
-#paths = Parallel(n_jobs = 4)(delayed(process)(pathN) for pathN in range(0,N_paths)) 
+paths = Parallel(n_jobs = 4)(delayed(process)(pathN) for pathN in range(0,N_paths)) 
 end_time = time.time()
 
 print("Total Time: %s" %(end_time - strt))
 print("Average Time Per Path: %s" %((end_time - strt)/N_paths))
 
-with open("1HWRunDemo.pkl","wb") as fp:
+with open("10-10-20HWRunDemo.pkl","wb") as fp:
     pickle.dump(paths,fp)
 
 
