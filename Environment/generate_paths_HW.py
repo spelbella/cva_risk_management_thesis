@@ -105,7 +105,7 @@ params["rho"] = 1
 
 # Number of steps and Number of Paths total
 params["N"] = N = (10-t0)*251
-N_paths = 10#
+N_paths = 100
 
 
 ti = [6/12, 7/12, 8/12, 9/12, 15/12, 5, 30]

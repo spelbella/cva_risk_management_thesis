@@ -187,7 +187,7 @@ class Global_Cache_HW:
             ret = interpolate.splev(T, self.interpolator, der=0)
         return ret   
 
-    def f0T(self,t, dt = 1e-4, startup = False):
+    def f0T(self,t, dt = 1e-5, startup = False):
         key = np.round(t,15)
         if key in self.f0T_cache:
             ret = self.f0T_cache[key]
@@ -198,7 +198,7 @@ class Global_Cache_HW:
             ret = - (np.log(self.P0T(t+dt))-np.log(self.P0T(t-dt)))/(2*dt)
         return ret
 
-    def theta(self, t, dt = 1e-4, startup = False):
+    def theta(self, t, dt = 1e-5, startup = False):
         key = np.round(t,15) 
         if key in self.theta_cache:
             ret = self.theta_cache[key]
