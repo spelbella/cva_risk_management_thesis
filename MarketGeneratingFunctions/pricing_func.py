@@ -119,7 +119,7 @@ class PricingFunc():
             return 0
         
         # Check Cache
-        key = hash((round(t,15),str(T_s),round(K,15)))
+        key = (round(t,15),T_s[0], T_s[-1],round(K,15))
         if key in self.Swap_cache:
             val = self.Swap_cache[key]
         else:
@@ -155,7 +155,7 @@ class PricingFunc():
         T_s = T_s.copy()
         [round(T_s[i]) for i in range(len(T_s)-1) if T_s[i+1] > t] + [T_s[-1]]
         """Sloppy Caching Code Begins"""
-        key = str((round(t,15),str(np.asarray(T_s).astype(float)),round(K,15)))
+        key = (round(t,15),T_s[0], T_s[-1],round(K,15))
         if key in self.Swaption_cache:
             return self.Swaption_cache[key]
         """Sloppy Caching Code Ends"""
@@ -237,16 +237,19 @@ class PricingFunc():
         T_s = T_s.copy()
         T_s = [T_s[i] for i in range(len(T_s)-1) if T_s[i+1] > t] + [T_s[-1]]
     
-        Q_vec = [self.Q(t,T) for T in T_s] #[Q(T_0), Q(T_1), Q(T_2), Q(T_3) ..., Q_(T_n-1)]
-        Buckets = [Q_vec[k-1] - Q_vec[k] for k in range(1,len(Q_vec))] # [(Q(T_0) - Q(T_1), (Q(T_1) - Q(T_2)), ..., (Q(T_n-2) - Q(T_n-1))]
-        Swaptions = [self.swaption_price(t,T_s[k:],K) for k in range(0,len(T_s)-1)] #[Spt(T_1), Spt(T_2), Spt(T_3), Spt(T_4), ..., Spt(T_n-1)]
+        Buckets = []
+        Swaptions = []
+        if len(T_s) > 2:
+            Q_vec = [self.Q(t,T) for T in T_s] #[Q(T_0), Q(T_1), Q(T_2), Q(T_3) ..., Q_(T_n-1)]
+            Buckets = [Q_vec[k-1] - Q_vec[k] for k in range(1,len(Q_vec))] # [(Q(T_0) - Q(T_1), (Q(T_1) - Q(T_2)), ..., (Q(T_n-2) - Q(T_n-1))]
+            Swaptions = [self.swaption_price(t,T_s[k:],K) for k in range(0,len(T_s)-1)] #[Spt(T_1), Spt(T_2), Spt(T_3), Spt(T_4), ..., Spt(T_n-1)]
 
-        if t > T_s[0] and len(T_s) > 2:
-            # Trim the zero value swaption and it's bucket
-            Swaptions = Swaptions[1:]
-            Buckets = Buckets[1:]
-            # The first active bucket goes from Q(T_a+2 > tau > T_a+1) to Q(T_a+2 > tau > T_a) to cover the gap [Recall Q(tau > T_a) := 1]
-            Buckets[0] = 1 - Q_vec[2] 
+            if t > T_s[0]:
+                # Trim the zero value swaption and it's bucket
+                Swaptions = Swaptions[1:]
+                Buckets = Buckets[1:]
+                # The first active bucket goes from Q(T_a+2 > tau > T_a+1) to Q(T_a+2 > tau > T_a) to cover the gap [Recall Q(tau > T_a) := 1]
+                Buckets[0] = 1 - Q_vec[2] 
 
         return np.inner(Buckets,Swaptions)
     
@@ -285,7 +288,7 @@ class PricingFunc_HW():
         self.mu_v_cache = dict()
         self.h = (self.kappa**2 + 2*self.v**2)**(1/2)
 
-        """
+        '''
         self.times_Pcache = 0 
         self.times_Pfresh = 0
 
@@ -307,7 +310,8 @@ class PricingFunc_HW():
 
         self.times_rcache = 0
         self.times_rfresh = 0
-        """
+        '''
+
         return
     
     """ Define all of the pricing funcs with caching """
@@ -400,7 +404,7 @@ class PricingFunc_HW():
             return 0
         
         # Check Cache
-        key = hash((round(t,15),str(T_s),round(K,15)))
+        key = (round(t,15),T_s[0], T_s[-1],round(K,15))
         if key in self.Swap_cache:
             val = self.Swap_cache[key]
             #self.times_Swcache = self.times_Swcache + 1
@@ -438,7 +442,7 @@ class PricingFunc_HW():
         T_m = T_s[0] # The entrance date
         dates = T_s[1:] # The payment dates
         cashs = self.cashflows(K, T_s) # The Cashflows
-        key = hash((round(t,15),str(np.float32(T_s)),round(K,15)))
+        key = (round(t,15),T_s[0], T_s[-1],round(K,15))
         if key in self.Swaption_cache:
             value = self.Swaption_cache[key]
             #self.times_Swpcache = self.times_Swpcache + 1
@@ -472,6 +476,7 @@ class PricingFunc_HW():
         key = hash((round(t,15),round(T,15)))
         if key in self.Q_cache:
             Q_val = self.Q_cache[key]
+            #self.times_Qcache = self.times_Qcache + 1
         elif t > T:
             Q_val = 1.0
         else:
@@ -495,17 +500,20 @@ class PricingFunc_HW():
         # First lets rewrite the T_s vector into a T_s vector where all the payments are actually still in the future, and it starts at the last passed adjustment date
         T_s = T_s.copy()
         T_s = [T_s[i] for i in range(len(T_s)-1) if T_s[i+1] > t] + [T_s[-1]]
-    
-        Q_vec = [self.Q(t,T) for T in T_s] #[Q(T_0), Q(T_1), Q(T_2), Q(T_3) ..., Q_(T_n-1)]
-        Buckets = [Q_vec[k-1] - Q_vec[k] for k in range(1,len(Q_vec))] # [(Q(T_0) - Q(T_1), (Q(T_1) - Q(T_2)), ..., (Q(T_n-2) - Q(T_n-1))]
-        Swaptions = [self.swaption_price(t,T_s[k:],K) for k in range(1,len(T_s))] #[Spt(T_1), Spt(T_2), Spt(T_3), Spt(T_4), ..., Spt(T_n-1)]
 
-        if t > T_s[0] and len(T_s) > 2:
-            # Trim the zero value swaption and it's bucket
-            Swaptions = Swaptions[1:]
-            Buckets = Buckets[1:]
-            # The first active bucket goes from Q(T_a+2 > tau > T_a+1) to Q(T_a+2 > tau > T_a) to cover the gap [Recall Q(tau > T_a) := 1]
-            Buckets[0] = 1 - Q_vec[2] 
+        Buckets = []
+        Swaptions = []
+        if False: # len(T_s) > 2:
+            Q_vec = [self.Q(t,T) for T in T_s] #[Q(T_0), Q(T_1), Q(T_2), Q(T_3) ..., Q_(T_n-1)]
+            Buckets = [Q_vec[k-1] - Q_vec[k] for k in range(1,len(Q_vec))] # [(Q(T_0) - Q(T_1), (Q(T_1) - Q(T_2)), ..., (Q(T_n-2) - Q(T_n-1))]
+            Swaptions = [self.swaption_price(t,T_s[k:],K) for k in range(0,len(T_s)-1)] #[Spt(T_1), Spt(T_2), Spt(T_3), Spt(T_4), ..., Spt(T_n-1)]
+
+            if t > T_s[0]:
+                # Trim the zero value swaption and it's bucket
+                Swaptions = Swaptions[1:]
+                Buckets = Buckets[1:]
+                # The first active bucket goes from Q(T_a+2 > tau > T_a+1) to Q(T_a+2 > tau > T_a) to cover the gap [Recall Q(tau > T_a) := 1]
+                Buckets[0] = 1 - Q_vec[2] 
 
         return np.inner(Buckets,Swaptions)
     

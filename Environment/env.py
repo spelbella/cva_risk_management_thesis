@@ -2,7 +2,7 @@ import gymnasium as gym
 from gymnasium import wrappers as wrap
 import numpy as np
 
-from path_datatype import Path
+from MarketGeneratingFunctions import Path
 
 class tradingEng(gym.Env):
     def __init__(self, paths):
