@@ -21,7 +21,7 @@ def delta_hedge(Swapts,Q,T_s,t):
         QHedgeAmount = [0] + [Swapts0[k] - Swapts0[k-1] for k in range(1,len(T_sl))]   # How much to hedge in Q starting at indx a and ending at Q(T_b-1)
 
         # Adjustment term
-        if False: #t > T_s[0]: 
+        if t > T_s[0]: 
             SwapHedgeAmount[0] = 0
             SwapHedgeAmount[1] = (1 - Q_vec[2])
             
