@@ -25,8 +25,9 @@ class tradingEng(gym.Env):
         self._agent_position = dict()
 
         # The Observation space, 
-        scaleo = 10
-        scalea = 0.5
+        scaleo = 50
+        scalebig = 1
+        scalesmall = 1
         match obs:
             case 'big':
                 # let's let it look at the value of the 9 swaptions, the 9 (non constant) Qs, it's portfolio in each of those, and r (37 actions), 
@@ -41,8 +42,8 @@ class tradingEng(gym.Env):
                 self.observation_space = gym.spaces.Box(low = lower,high = upper, dtype=float)
             case 'xs':
                 # Just the interest rate and default intensity and time, order = [intensity, interest, time]
-                lower = np.asarray([0, -scaleo , 0])
-                upper = np.asarray([scaleo, scaleo, scaleo])
+                lower = np.asarray([-1, -1])
+                upper = np.asarray([1, 1])
                 self.observation_space = gym.spaces.Box(low = lower,high = upper, dtype=float)
             case _:
                 return "No observation space matching input"
@@ -50,13 +51,13 @@ class tradingEng(gym.Env):
         match action:
             case 'big':
                 # The action space, let's let the action space be to take a new position -> 18 dim
-                lowera = -scalea*np.ones(18)
-                uppera = scalea*np.ones(18)
+                lowera = -scalebig*np.ones(18)
+                uppera = scalebig*np.ones(18)
                 self.action_space = gym.spaces.Box(low = lowera,high = uppera, dtype=float)
             case 'small':
                 # Just the swaption and q with last expiry
-                lowera = np.asarray([-scalea, -scalea])
-                uppera = np.asarray([scalea, scalea])
+                lowera = np.asarray([-1, -1])
+                uppera = np.asarray([1, 1])
                 self.action_space = gym.spaces.Box(low = lowera,high = uppera, dtype=float)
             case _:
                 return "No matching action space"
@@ -84,9 +85,9 @@ class tradingEng(gym.Env):
                 ])
             case 'xs':
                 return np.asmatrix([
-                    self.currpth.lambdas[self.tIDX],
-                    self.currpth.r[self.tIDX],
-                    self.currpth.t_s[self.tIDX]
+                    np.tanh(np.log(self.currpth.lambdas[self.tIDX])) if self.currpth.lambdas[self.tIDX] != 0 else -1,
+                    np.tanh(self.currpth.r[self.tIDX]),
+                    #np.tanh(np.log(self.currpth.t_s[self.tIDX])) if self.currpth.t_s[self.tIDX] != 0 else -1
                 ])
     
     def swaptions_now(self):
@@ -100,13 +101,13 @@ class tradingEng(gym.Env):
         return [self.currpth.Q_s[i][self.tIDX] for i in range(1,10)]
     
     def posValue(self):
-        swaptions_val = np.linalg.norm(np.inner(self._agent_position["Swaption Position"],self.swaptions_now()))
-        Q_val = np.linalg.norm(np.inner(self._agent_position["Q Position"],self.Q_now()))
+        swaptions_val = np.inner(self._agent_position["Swaption Position"],self.swaptions_now())
+        Q_val = np.inner(self._agent_position["Q Position"],self.Q_now())
         return Q_val + swaptions_val
         
     def AposValue(self, action):
-        swaptions_val = np.linalg.norm(np.inner(action["Swaption Position"],self.swaptions_now()))
-        Q_val = np.linalg.norm(np.inner(action["Q Position"],self.Q_now()))
+        swaptions_val = np.inner(action["Swaption Position"],self.swaptions_now())
+        Q_val = np.inner(action["Q Position"],self.Q_now())
         return Q_val + swaptions_val
     
     def PnL(self):
@@ -125,7 +126,6 @@ class tradingEng(gym.Env):
         if self.pthIDX >= 800:
             self.pthIDX = 0
         self.currpth = self.paths[self.pthIDX]
-        CVA_at_t0 = self.currpth.CVA[0]
 
         # Initialize the portfolio to some ratio
         init_ratio  = np.ones(18)*(1/18)    # the initial value distribution, should probably be a delta hedge
@@ -175,18 +175,23 @@ class tradingEng(gym.Env):
         value = self.posValue()
         nCVA = self.currpth.CVA[self.tIDX]
 
-
-    
-
         # Observe the reward, which comes from the previous action
         dHedge = nCVA - oCVA
         dCVA = value - cost
-        reward = -((dHedge - dCVA)**2  + np.abs(dHedge - dCVA))* 1000
+        diff = dHedge - dCVA
+        #print(diff)
+        
+        # New Reward everywhere differentiable, perhaps less prone to overfit, rescale diff as you see fit
+        diff = np.abs(diff)
+        reward = -(diff*400)**2 
+        # old reward non differntiable but strong grads at all points
+        #reward = -((diff)**2  + np.abs(dHedge - dCVA))* 1000
         info = self._get_info()
         observation = self._get_obs()
+        #print(reward)
 
         # End the environment after we reach year 9
-        terminated = self.currpth.t_s[self.tIDX] > 0.2
+        terminated = self.currpth.t_s[self.tIDX] > 0.3
         truncated = False
 
         if terminated:
