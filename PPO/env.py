@@ -15,8 +15,8 @@ class tradingEng(gym.Env):
         # The Observation space, for now let's let it look at the value of the 9 swaptions, the 9 (non constant) Qs, it's portfolio in each of those, and r (37 actions)
         #self.observation_space = gym.spaces.Box(low = -5*np.ones(37),high = 5*np.ones(37), dtype=np.float32)
 
-        lower = np.concatenate([np.zeros(4), -np.inf*np.ones(1)])
-        upper = np.concatenate([np.ones(2),np.inf*np.ones(1),np.ones(1),np.inf*np.ones(1)]) #pos, swap value, Q value, r
+        lower = np.concatenate([-1*np.ones(2), 15*np.ones(1), np.zeros(1), -15*np.ones(1)])
+        upper = np.concatenate([np.ones(2), 15*np.ones(1), np.ones(1), 15*np.ones(1)]) #pos, swap value, Q value, r
         self.observation_space = gym.spaces.Box(low = lower,high = upper, dtype=np.float32)
 
         # The action space, let's let the action space be to take a new position -> 18 dim
