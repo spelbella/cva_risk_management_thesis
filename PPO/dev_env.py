@@ -30,10 +30,16 @@ class tradingEng(gym.Env):
         scalesmall = 1
         match obs:
             case 'big':
-                # let's let it look at the value of the 9 swaptions, the 9 (non constant) Qs, it's portfolio in each of those, and r (37 actions), 
+                # let's let it look at the value of the 9 swaptions, the 9 (non constant) Qs, it's portfolio in each of those, and r (36 actions), 
                 # order = [Actions, Swaptions, Qs, Interest Rate]
-                lower = np.concatenate([-scaleo*np.ones(18), np.zeros(18), [-scaleo]])
-                upper = np.concatenate([scaleo*np.ones(18), scaleo*np.ones(9), np.ones(9),[scaleo]])
+                lower = -1*np.ones(36)
+                upper = 1*np.ones(36)
+                self.observation_space = gym.spaces.Box(low = lower,high = upper, dtype=float)
+            case 'big-nt':
+                # let's let it look at the value of the 9 swaptions, the 9 (non constant) Qs, it's portfolio in each of those, and r (36 actions), 
+                # order = [Actions, Swaptions, Qs, Interest Rate]
+                lower = -1*np.ones(36)
+                upper = 1*np.ones(36)
                 self.observation_space = gym.spaces.Box(low = lower,high = upper, dtype=float)
             case 'small':
                 # Just the interest rate, default intensity and previous action and time, order = [prev actions, intensity, interest, time]
@@ -42,8 +48,13 @@ class tradingEng(gym.Env):
                 self.observation_space = gym.spaces.Box(low = lower,high = upper, dtype=float)
             case 'xs':
                 # Just the interest rate and default intensity and time, order = [intensity, interest, time]
-                lower = np.asarray([-1, -1])
-                upper = np.asarray([1, 1])
+                lower = np.asarray([-1, -1, -1])
+                upper = np.asarray([1, 1, 1])
+                self.observation_space = gym.spaces.Box(low = lower,high = upper, dtype=float)
+            case 'xs-nt':
+                # Just the interest rate and default intensity and time, order = [intensity, interest, time]
+                lower = np.asarray([-1, -1, -1])
+                upper = np.asarray([1, 1, 1])
                 self.observation_space = gym.spaces.Box(low = lower,high = upper, dtype=float)
             case _:
                 return "No observation space matching input"
@@ -59,6 +70,11 @@ class tradingEng(gym.Env):
                 lowera = np.asarray([-1, -1])
                 uppera = np.asarray([1, 1])
                 self.action_space = gym.spaces.Box(low = lowera,high = uppera, dtype=float)
+            case 'small-More-Trust':
+                # Just the swaption and q with last expiry
+                lowera = np.asarray([-1, -1])
+                uppera = np.asarray([1, 1])
+                self.action_space = gym.spaces.Box(low = lowera,high = uppera, dtype=float)
             case _:
                 return "No matching action space"
 
@@ -69,11 +85,17 @@ class tradingEng(gym.Env):
         match self.obs:
             case 'big':
                 return np.concatenate([
-                    self._agent_position["Swaption Position"],
-                    self._agent_position["Q Position"],
-                    self.swaptions_now(),
-                    self.Q_now(),
-                    [self.currpth.r[self.tIDX]]
+                    np.tanh(np.log(self._agent_position["Swaption Position"]+1)) #Hovers around 0.01 a lot, add small offset to avoid log of -, pos def, low variance, so add 1, take log and take tanh,
+                    (self._agent_position["Q Position"] - 0.5)*2, #Bounded 0,1 to bounded -1, 1
+                    self.swaptions_now(), # An NN output so let's not normalize
+                    self.Q_now(), # Also an NN output
+                ])
+            case 'big-nt':
+                return np.concatenate([
+                    self._agent_position["Swaption Position"], #Hovers around 0.01 a lot, add small offset to avoid log of -, pos def, low variance, so add 1, take log and take tanh,
+                    self._agent_position["Q Position"], #Bounded 0,1 to bounded -1, 1
+                    self.swaptions_now(), # An NN output so let's not normalize
+                    self.Q_now(), # Also an NN output
                 ])
             case 'small':
                 return np.concatenate([
@@ -83,11 +105,19 @@ class tradingEng(gym.Env):
                     [self.currpth.r[self.tIDX]],
                     [self.currpth.t_s[self.tIDX]]
                 ])
-            case 'xs':
+            case 'xs': # Transformed Observations work best!, Need to test not transforming t or doing a different transform since time goes 0 to 10, maybe just divide by 5 - 1??
                 return np.asmatrix([
-                    np.tanh(np.log(self.currpth.lambdas[self.tIDX])) if self.currpth.lambdas[self.tIDX] != 0 else -1,
+                    np.tanh(np.log((self.currpth.lambdas[self.tIDX] - 0.001)+1)) if self.currpth.lambdas[self.tIDX] != -0.999 else -1,
                     np.tanh(self.currpth.r[self.tIDX]),
+                    # Different TIme Norm
+                    self.currpth.t_s[self.tIDX]/5 - 1,
                     #np.tanh(np.log(self.currpth.t_s[self.tIDX])) if self.currpth.t_s[self.tIDX] != 0 else -1
+                ])
+            case 'xs-nt':
+                return np.asmatrix([
+                    self.currpth.lambdas[self.tIDX],
+                    self.currpth.r[self.tIDX],
+                    self.currpth.t_s[self.tIDX]
                 ])
     
     def swaptions_now(self):
@@ -123,7 +153,7 @@ class tradingEng(gym.Env):
     def reset(self, seed = None, options = None):
         self.tIDX = 0
         self.pthIDX = self.pthIDX + 1
-        if self.pthIDX >= 800:
+        if self.pthIDX >= 1200:
             self.pthIDX = 0
         self.currpth = self.paths[self.pthIDX]
 
@@ -158,6 +188,10 @@ class tradingEng(gym.Env):
                 swpt = actionl[0]
                 Q = actionl[1]
                 actionl = np.concatenate([np.zeros(8), [swpt], np.zeros(8), [Q]])
+            case 'small-More-Trust':
+                swpt = actionl[0]*10
+                Q = actionl[1]*10
+                actionl = np.concatenate([np.zeros(8), [swpt], np.zeros(8), [Q]])
         if not isinstance(actionl, dict):
             actionl = self.vec_to_dict(actionl)
         
@@ -182,8 +216,11 @@ class tradingEng(gym.Env):
         #print(diff)
         
         # New Reward everywhere differentiable, perhaps less prone to overfit, rescale diff as you see fit
-        diff = np.abs(diff)
-        reward = -(diff*400)**2 
+        # A do nothing agent gets an average diff of around 3e-5 (very roughly)
+        normed_diff = np.abs(diff)
+
+        # Since the diff is unbounded posdef we can take a log transform and a tanh to map to -1 to 1
+        reward = -normed_diff
         # old reward non differntiable but strong grads at all points
         #reward = -((diff)**2  + np.abs(dHedge - dCVA))* 1000
         info = self._get_info()
@@ -191,7 +228,7 @@ class tradingEng(gym.Env):
         #print(reward)
 
         # End the environment after we reach year 9
-        terminated = self.currpth.t_s[self.tIDX] > 0.3
+        terminated = self.currpth.t_s[self.tIDX] > 5
         truncated = False
 
         if terminated:
