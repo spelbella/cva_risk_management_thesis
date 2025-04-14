@@ -1,13 +1,22 @@
 import gymnasium as gym
 from gymnasium import wrappers as wrap
 import numpy as np
+import random
 
 import path_datatype
 
+import sys
+import os
+sys.path.append(os.path.abspath(os.path.join(os.getcwd(), "..")))
+os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
+
+from MarketGeneratingFunctions import DeltaHedge
+
 class tradingEng(gym.Env):
-    def __init__(self, paths, action = 'big', obs = 'big'):
+    def __init__(self, paths, action = 'small-More-Trust', obs = 'big', tutor = False):
         # The paths
-        self.paths = paths
+        self.paths = paths.copy()
+        random.shuffle(self.paths)
 
         # The currently looked at path indx
         self.pthIDX = 0
@@ -17,6 +26,10 @@ class tradingEng(gym.Env):
         # The action and obs space
         self.action = action
         self.obs = obs
+
+        # The Tutor Threshold
+        self.threshold = 0
+        self.tutor = tutor
 
         # The time index
         self.tIDX = 0
@@ -32,8 +45,8 @@ class tradingEng(gym.Env):
             case 'big':
                 # let's let it look at the value of the 9 swaptions, the 9 (non constant) Qs, it's portfolio in each of those, and r (36 actions), 
                 # order = [Actions, Swaptions, Qs, Interest Rate]
-                lower = -1*np.ones(36)
-                upper = 1*np.ones(36)
+                lower = -1*np.ones(18)
+                upper = 1*np.ones(18)
                 self.observation_space = gym.spaces.Box(low = lower,high = upper, dtype=float)
             case 'big-nt':
                 # let's let it look at the value of the 9 swaptions, the 9 (non constant) Qs, it's portfolio in each of those, and r (36 actions), 
@@ -84,11 +97,11 @@ class tradingEng(gym.Env):
     def _get_obs(self):
         match self.obs:
             case 'big':
-                return np.concatenate([
-                    np.tanh(np.log(self._agent_position["Swaption Position"]+1)) #Hovers around 0.01 a lot, add small offset to avoid log of -, pos def, low variance, so add 1, take log and take tanh,
-                    (self._agent_position["Q Position"] - 0.5)*2, #Bounded 0,1 to bounded -1, 1
-                    self.swaptions_now(), # An NN output so let's not normalize
-                    self.Q_now(), # Also an NN output
+                return np.concat([
+                    #self._agent_position["Swaption Position"]+1)) #Hovers around 0.01 a lot, add small offset to avoid log of -, pos def, low variance, so add 1, take log and take tanh,
+                    #self._agent_position["Q Position"], #Bounded 0,1 to bounded -1, 1
+                    np.tanh(np.log([a+1 for a in self.swaptions_now()])), # An NN output so let's not normalize
+                    [(a - 0.5)*2 for a in self.Q_now()] # Also an NN output
                 ])
             case 'big-nt':
                 return np.concatenate([
@@ -153,8 +166,9 @@ class tradingEng(gym.Env):
     def reset(self, seed = None, options = None):
         self.tIDX = 0
         self.pthIDX = self.pthIDX + 1
-        if self.pthIDX >= 1200:
+        if self.pthIDX >= 125:
             self.pthIDX = 0
+            random.shuffle(self.paths)
         self.currpth = self.paths[self.pthIDX]
 
         # Initialize the portfolio to some ratio
@@ -220,9 +234,26 @@ class tradingEng(gym.Env):
         normed_diff = np.abs(diff)
 
         # Since the diff is unbounded posdef we can take a log transform and a tanh to map to -1 to 1
-        reward = -normed_diff
-        # old reward non differntiable but strong grads at all points
-        #reward = -((diff)**2  + np.abs(dHedge - dCVA))* 1000
+        reward = 1-normed_diff*500
+
+        if self.tutor is True:
+            t = self.currpth.t_s[self.tIDX]
+            Q = [self.currpth.Q_s[j][self.tIDX] for j in range(0,11)]
+            Swapts = [self.currpth.Swaptions[j][self.tIDX] for j in range(0,10)]
+            T_sl = np.arange(0,11)
+
+            [SwapsHedge,Qhedge] = DeltaHedge.delta_hedge(Swapts,Q,T_sl,t)
+            SwapsHedge = SwapsHedge[1:10]
+            Qhedge = Qhedge[1:10]
+
+            pos = np.concat([SwapsHedge,Qhedge])
+            diff = np.linalg.norm(action-pos,1)*10
+
+            if np.random.rand() > self.threshold:
+                reward = -diff*0.0002
+
+            self.threshold = np.min([self.threshold + 0.01/600,0.999999])
+
         info = self._get_info()
         observation = self._get_obs()
         #print(reward)
