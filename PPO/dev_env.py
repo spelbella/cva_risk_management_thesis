@@ -2,6 +2,7 @@ import gymnasium as gym
 from gymnasium import wrappers as wrap
 import numpy as np
 import random
+import torch as th
 
 import path_datatype
 
@@ -13,7 +14,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 from MarketGeneratingFunctions import DeltaHedge
 
 class tradingEng(gym.Env):
-    def __init__(self, paths, action = 'small-More-Trust', obs = 'big', tutor = False):
+    def __init__(self, paths, action = 'small-More-Trust', obs = 'big', reward = 'L1', rewardscale = 1, huberBeta = 0.1):
         # The paths
         self.paths = paths.copy()
         random.shuffle(self.paths)
@@ -27,9 +28,10 @@ class tradingEng(gym.Env):
         self.action = action
         self.obs = obs
 
-        # The Tutor Threshold
-        self.threshold = 0
-        self.tutor = tutor
+        # The Reward settings
+        self.rewardf = reward
+        self.reward_scale = rewardscale
+        self.Huber = huberBeta
 
         # The time index
         self.tIDX = 0
@@ -41,6 +43,10 @@ class tradingEng(gym.Env):
         scaleo = 50
         scalebig = 1
         scalesmall = 1
+
+        # Encoder 
+        self.encoder = None
+        
         match obs:
             case 'big':
                 # let's let it look at the value of the 9 swaptions, the 9 (non constant) Qs, it's portfolio in each of those, and r (36 actions), 
@@ -64,6 +70,22 @@ class tradingEng(gym.Env):
                 lower = np.asarray([-1, -1, -1])
                 upper = np.asarray([1, 1, 1])
                 self.observation_space = gym.spaces.Box(low = lower,high = upper, dtype=float)
+            case 'auto':
+                # Autoencoder based information
+                import AutoEncoder
+                import pickle
+                with open("autoencoderT","rb") as fp:
+                    self.encoder = pickle.load(fp)
+                    print("Opened File ok")
+
+                lower = np.asarray([-1, -1, -1])
+                upper = np.asarray([1, 1, 1])
+                self.observation_space = gym.spaces.Box(low = lower,high = upper, dtype=float)
+            case 'none':
+                # A dummy input with no information about the env to test best case of uninformed hedging
+                lower = np.asarray([-1])
+                upper = np.asarray([1])
+                self.observation_space = gym.spaces.Box(low = lower,high = upper, dtype=float)            
             case 'xs-nt':
                 # Just the interest rate and default intensity and time, order = [intensity, interest, time]
                 lower = np.asarray([-1, -1, -1])
@@ -126,6 +148,14 @@ class tradingEng(gym.Env):
                     self.currpth.t_s[self.tIDX]/5 - 1,
                     #np.tanh(np.log(self.currpth.t_s[self.tIDX])) if self.currpth.t_s[self.tIDX] != 0 else -1
                 ])
+            case 'auto': # Transformed Observations work best!, Need to test not transforming t or doing a different transform since time goes 0 to 10, maybe just divide by 5 - 1??
+                sample = np.concat([self.swaptions_now(), self.Q_now()])
+                sample = self.encoder.preprocess(sample)
+                z = self.encoder.encoder(th.from_numpy(sample))
+                return z.detach().numpy()
+            case 'none':
+                return np.asmatrix([0])
+
             case 'xs-nt':
                 return np.asmatrix([
                     self.currpth.lambdas[self.tIDX],
@@ -229,30 +259,8 @@ class tradingEng(gym.Env):
         diff = dHedge - dCVA
         #print(diff)
         
-        # New Reward everywhere differentiable, perhaps less prone to overfit, rescale diff as you see fit
-        # A do nothing agent gets an average diff of around 3e-5 (very roughly)
-        normed_diff = np.abs(diff)
-
         # Since the diff is unbounded posdef we can take a log transform and a tanh to map to -1 to 1
-        reward = 1-normed_diff*500
-
-        if self.tutor is True:
-            t = self.currpth.t_s[self.tIDX]
-            Q = [self.currpth.Q_s[j][self.tIDX] for j in range(0,11)]
-            Swapts = [self.currpth.Swaptions[j][self.tIDX] for j in range(0,10)]
-            T_sl = np.arange(0,11)
-
-            [SwapsHedge,Qhedge] = DeltaHedge.delta_hedge(Swapts,Q,T_sl,t)
-            SwapsHedge = SwapsHedge[1:10]
-            Qhedge = Qhedge[1:10]
-
-            pos = np.concat([SwapsHedge,Qhedge])
-            diff = np.linalg.norm(action-pos,1)*10
-
-            if np.random.rand() > self.threshold:
-                reward = -diff*0.0002
-
-            self.threshold = np.min([self.threshold + 0.01/600,0.999999])
+        reward = self.reward(diff)
 
         info = self._get_info()
         observation = self._get_obs()
@@ -266,3 +274,19 @@ class tradingEng(gym.Env):
             self.reset()
 
         return observation, reward, terminated, truncated, info
+
+def reward(self, diff):
+    match self.rewardf:
+        case 'L1':
+            reward = np.abs(diff) * self.reward_scale
+        case 'L2':
+            reward = diff**2 * self.reward_scale
+        case 'Huber':
+            reward = (int(diff >= self.Huber)*(1/2)*diff**2 + int(diff < self.Huber)*self.Huber*(np.abs(diff) - 1/2*self.Huber)) * self.reward_scale
+        case 'PnL':
+            reward = diff
+        case '(Pnl)-':
+            reward = np.min([diff,0.0]) 
+        case _:
+            reward = 0.0
+    return reward
