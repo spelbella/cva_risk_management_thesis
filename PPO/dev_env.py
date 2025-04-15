@@ -46,7 +46,7 @@ class tradingEng(gym.Env):
 
         # Encoder 
         self.encoder = None
-        
+
         match obs:
             case 'big':
                 # let's let it look at the value of the 9 swaptions, the 9 (non constant) Qs, it's portfolio in each of those, and r (36 actions), 

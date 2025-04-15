@@ -110,3 +110,11 @@ class MarketAutoencoder(th.nn.Module):
                     last_loss = running_loss/(i%2000 + 1) 
                     print('Epoch{}, Batch {} loss: {}'.format(epoch+1,i+1,last_loss))
                     running_loss = 0
+
+    # Right now unused but in future case if you regenerate autoencoder using this in the dev_env instead of forward ?might? be faster
+    @th.no_grad
+    def compress(self,sample):
+        sample = sample.copy()
+        sample = self.preprocess(sample)
+        z = self.encoder(sample)
+        return z
