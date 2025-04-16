@@ -218,7 +218,24 @@ class tradingEng(gym.Env):
             raise ValueError('You passed an action of incorrect length to the enivironment, it should be 18 long in a normal numeric format like a list or ndarray' + dumm)
         swapts = action[0:9]
         Qs = action[9:18]
-        return dict({"Swaption Position" : swapts, "Q Position" : Qs})
+        return dict({"Swaption Position" : swapts, "Q Position" : Qs})\
+
+    def reward(self, diff):
+        match self.rewardf:
+            case 'L1':
+                reward = (-1)* np.abs(diff) * self.reward_scale
+            case 'L2':
+                reward = -(diff**2 * self.reward_scale)
+            case 'Huber':
+                reward = -(int(diff >= self.Huber)*(1/2)*diff**2 + int(diff < self.Huber)*self.Huber*(np.abs(diff) - 1/2*self.Huber)) * self.reward_scale
+            case 'PnL':
+                reward = diff
+            case '(Pnl)-':
+                reward = np.min([diff,0.0]) 
+            case _:
+                reward = 0.0
+        return reward
+
 
     # The meat and potatoes
     def step(self, action):
@@ -274,19 +291,3 @@ class tradingEng(gym.Env):
             self.reset()
 
         return observation, reward, terminated, truncated, info
-
-def reward(self, diff):
-    match self.rewardf:
-        case 'L1':
-            reward = np.abs(diff) * self.reward_scale
-        case 'L2':
-            reward = diff**2 * self.reward_scale
-        case 'Huber':
-            reward = (int(diff >= self.Huber)*(1/2)*diff**2 + int(diff < self.Huber)*self.Huber*(np.abs(diff) - 1/2*self.Huber)) * self.reward_scale
-        case 'PnL':
-            reward = diff
-        case '(Pnl)-':
-            reward = np.min([diff,0.0]) 
-        case _:
-            reward = 0.0
-    return reward
