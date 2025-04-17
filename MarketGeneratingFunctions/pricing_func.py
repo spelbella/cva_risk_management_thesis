@@ -244,7 +244,7 @@ class PricingFunc():
             Buckets = [Q_vec[k-1] - Q_vec[k] for k in range(1,len(Q_vec))] # [(Q(T_0) - Q(T_1), (Q(T_1) - Q(T_2)), ..., (Q(T_n-2) - Q(T_n-1))]
             Swaptions = [self.swaption_price(t,T_s[k:],K) for k in range(0,len(T_s)-1)] #[Spt(T_1), Spt(T_2), Spt(T_3), Spt(T_4), ..., Spt(T_n-1)]
 
-            if t > T_s[0]:
+            if False: #t > T_s[0]:
                 # Trim the zero value swaption and it's bucket
                 Swaptions = Swaptions[1:]
                 Buckets = Buckets[1:]
@@ -503,12 +503,12 @@ class PricingFunc_HW():
 
         Buckets = []
         Swaptions = []
-        if False: # len(T_s) > 2:
+        if len(T_s) > 2:
             Q_vec = [self.Q(t,T) for T in T_s] #[Q(T_0), Q(T_1), Q(T_2), Q(T_3) ..., Q_(T_n-1)]
             Buckets = [Q_vec[k-1] - Q_vec[k] for k in range(1,len(Q_vec))] # [(Q(T_0) - Q(T_1), (Q(T_1) - Q(T_2)), ..., (Q(T_n-2) - Q(T_n-1))]
             Swaptions = [self.swaption_price(t,T_s[k:],K) for k in range(0,len(T_s)-1)] #[Spt(T_1), Spt(T_2), Spt(T_3), Spt(T_4), ..., Spt(T_n-1)]
 
-            if t > T_s[0]:
+            if False: #t > T_s[0]:
                 # Trim the zero value swaption and it's bucket
                 Swaptions = Swaptions[1:]
                 Buckets = Buckets[1:]
