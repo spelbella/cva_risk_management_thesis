@@ -149,10 +149,13 @@ class Global_Cache_HW:
         # Generate combined timesteps and expiry timetable, this ensures that things are found on timestep which is sometimes neesecary 
         ext_time = np.append(t_s,T_s)
         # Fill the theta Cache, in the current implentation this *needs* to be done before A since A naively asks for interpolated thetas, this can be changed by setting startup = True in the theta call duing A startup
-        for i in range(len(ext_time)):
-            for i in range(10):
-                t_subtick = t_s[i] + i*(ext_time[i+1]-ext_time[i])
-                self.theta(t_subtick,1e-4,startup = True)
+        [self.theta(t, startup = True) for t in t_s]
+        import matplotlib.pyplot as plt
+        #plt.plot(t_s, [self.theta(t)/self.alpha for t in t_s])
+        plt.plot(t_s, [self.P0T(t) for t in t_s])
+        plt.show()
+        plt.plot(t_s, [self.theta(t)/self.alpha for t in t_s])
+        plt.show()
 
         # Fill the A cache, this should be exhaustive as long as we only price on the standard grid and not jump added grid points
         for t in ext_time:
@@ -187,7 +190,7 @@ class Global_Cache_HW:
             ret = interpolate.splev(T, self.interpolator, der=0)
         return ret   
 
-    def f0T(self,t, dt = 1e-5, startup = False):
+    def f0T(self,t, dt = 1e-6, startup = False):
         key = np.round(t,15)
         if key in self.f0T_cache:
             ret = self.f0T_cache[key]
@@ -202,12 +205,13 @@ class Global_Cache_HW:
         key = np.round(t,15) 
         if key in self.theta_cache:
             ret = self.theta_cache[key]
+            
         elif startup:
-            ret = (self.f0T(t+dt, startup = True)-self.f0T(t-dt, startup = True))/(2.0*dt) + self.f0T(t, startup = True) + self.sigma**2/(2.0*self.alpha)*(1.0-np.exp(-2.0*self.alpha*t))
+            ret = (self.f0T(t+dt, startup = True)-self.f0T(t-dt, startup = True))/(2.0*dt) + self.alpha * self.f0T(t, startup = True) + self.sigma**2/(2.0*self.alpha)*(1.0-np.exp(-2.0*self.alpha*t))
             self.theta_cache[key] = ret
-            l_idx = bisect(self.theta_grid, t) # Find out index to pass to insert
-            self.theta_grid.insert(l_idx,t)
-            self.thetas.insert(l_idx,ret)
+            #l_idx = bisect(self.theta_grid, t) # Find out index to pass to insert Since startup is run in order just insert as is
+            self.theta_grid.append(t)
+            self.thetas.append(ret)
         else:
             ret = np.interp(t,self.theta_grid,self.thetas)
         return ret

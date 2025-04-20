@@ -105,17 +105,17 @@ params["rho"] = 1
 
 # Number of steps and Number of Paths total
 params["N"] = N = (20-t0)*252
-N_paths = 1000
+N_paths = 1
 
 
 ti = [6/12, 7/12, 8/12, 9/12, 15/12, 5, 30]
 # ti = [1/4, 1/2, 1, 2, 5, 10, 30]
-Pi = [np.exp(1/100 * k) for k in [2.421, 2.336, 2.296, 2.241, 2.172, 2.491, 2.604]]
+Pi = [np.exp(-1/100 * k * t) for k, t in zip([2.421, 2.336, 2.296, 2.241, 2.172, 2.491, 2.604],ti)]
 # Pi = [np.exp(1/100 * k) for k in [4.268, 4.224, 4.001, 3.898, 3.927, 4.140, 4.457]] bUs treasuries
 calib_data = {"ti":ti,"Pi":Pi}
 
 # Global base time grid, pre jump insertion
-t_s_base = np.linspace(t0,20,N)
+t_s_base = np.linspace(t0,10,250)
 T_s = np.arange(0,21,1)
 
 #########################################
