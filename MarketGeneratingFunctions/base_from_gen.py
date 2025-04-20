@@ -107,6 +107,12 @@ def mkt_base_from_HW_cache(cache):
     r_ongrid = dict()   # A fast way to get r from t if it's on the established time grid
     lambda_ongrid = dict()
 
+    r_sync = []
+    lamb_sync = []
+
+    r_sync.append(r0)
+    lamb_sync.append(lambda0)
+
     for i in np.arange(1,len(t_s)):
         dt = t_s[i]-t_s[i-1]
         dW = np.sqrt(dt)*W_gen[i]
@@ -127,6 +133,15 @@ def mkt_base_from_HW_cache(cache):
             if t_s[i] == jumps[0][0]:
                 lambdas[i] = lambdas[i] + jumps[0][1]
                 jumps.pop(0)
+            else:
+                r_sync.append(r[i])
+                lamb_sync.append(lambdas[i])
+        else:
+            r_sync.append(r[i])
+            lamb_sync.append(lambdas[i])
+            
         lambda_ongrid[hash(t_s[i])] = lambdas[i]
+
+
         
-    return (t_s,r,lambdas,r_ongrid,lambda_ongrid)
+    return (t_s,r,lambdas,r_ongrid,lambda_ongrid, r_sync, lamb_sync)

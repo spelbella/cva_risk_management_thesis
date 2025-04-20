@@ -96,8 +96,8 @@ params["j_alpha"] = 0.1 # We should expect to see about 4 jumps,
 params["gamma"] = 0.1 # With expected size mu/5
 
 # Short rate params
-params["r0"] = r0 = 0.045
-params["alpha"] = alpha = 0.018 # 1
+params["r0"] = r0 = 2.421/100
+params["alpha"] = alpha = 0.045
 params["sigma"] = sigma = 0.007 #np.sqrt(r0)/5
 
 # Covariance
@@ -132,7 +132,7 @@ paths = []
 strt = time.time()
 def process(pathN): #for i in range(0,N_paths):
     # Generate the market grid and basic r and lambda
-    [t_s,r,lambdas,r_ongrid,lambdas_ongrid] = bg.mkt_base_from_HW_cache(gc)
+    [t_s,r,lambdas,r_ongrid,lambdas_ongrid, r_sn, lamb_sn] = bg.mkt_base_from_HW_cache(gc)
     
     # Create a pricing object for this specific market
     pricer = pf.PricingFunc_HW(params, gc, t_s, r, r_ongrid,lambdas, lambdas_ongrid)
@@ -143,7 +143,7 @@ def process(pathN): #for i in range(0,N_paths):
     CVA = [pricer.CVA(t,T_s,K) for t in t_s_base]
     #Swaps = [[pricer.swap_price(t,T_s_2,K) for t in t_s_base] for T_s_2 in [(T_s + [0])[:-i] for i in range(1,len(T_s))]]
 
-    return Path(t_s_base, lambdas, r, CVA, Q_s, None, Swaptions, K) # return Path(t_s, lambdas, r, CVA, Q_s, Swaps, Swaptions)
+    return Path(t_s_base, lamb_sn, r_sn, CVA, Q_s, None, Swaptions, K) # return Path(t_s, lambdas, r, CVA, Q_s, Swaps, Swaptions)
  
 paths = Parallel(n_jobs = 4)(delayed(process)(pathN) for pathN in range(0,N_paths)) 
 end_time = time.time()

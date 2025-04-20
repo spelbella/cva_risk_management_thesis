@@ -150,12 +150,12 @@ class Global_Cache_HW:
         ext_time = np.append(t_s,T_s)
         # Fill the theta Cache, in the current implentation this *needs* to be done before A since A naively asks for interpolated thetas, this can be changed by setting startup = True in the theta call duing A startup
         [self.theta(t, startup = True) for t in t_s]
-        import matplotlib.pyplot as plt
+        #import matplotlib.pyplot as plt
         #plt.plot(t_s, [self.theta(t)/self.alpha for t in t_s])
-        plt.plot(t_s, [self.P0T(t) for t in t_s])
-        plt.show()
-        plt.plot(t_s, [self.theta(t)/self.alpha for t in t_s])
-        plt.show()
+        #plt.plot(t_s, [self.P0T(t) for t in t_s])
+        #plt.show()
+        #plt.plot(t_s, [self.theta(t)/self.alpha for t in t_s])
+        #plt.show()
 
         # Fill the A cache, this should be exhaustive as long as we only price on the standard grid and not jump added grid points
         for t in ext_time:
@@ -223,14 +223,14 @@ class Global_Cache_HW:
             ret = self.A_cache[key]
         elif startup:
             pt_simple = -(self.sigma**2)/(4*self.alpha**3) * (3 + np.e**(-2*self.alpha*(T-t)) - 4*np.e**(-self.alpha*(T-t)) - 2*self.alpha*(T-t))
-            integrand = [self.theta(z)*self.B(z,T) for z in np.linspace(t, T, int_steps)]
-            pt_integral =  integrate.trapezoid(integrand, x=np.linspace(t, T, int_steps))  
+            integrand = [self.theta(z)/self.alpha*self.B(z,T) for z in np.linspace(t, T, int_steps)]
+            pt_integral =  self.alpha * integrate.trapezoid(integrand, x=np.linspace(t, T, int_steps))  
             ret = pt_simple + pt_integral
             self.A_cache[key] = ret
         else:
             pt_simple = -(self.sigma**2)/(4*self.alpha**3) * (3 + np.e**(-2*self.alpha*(T-t)) - 4*np.e**(-self.alpha*(T-t)) - 2*self.alpha*(T-t))
-            integrand = [self.theta(z)*self.B(z,T) for z in np.linspace(t, T, int_steps)]
-            pt_integral =  integrate.trapezoid(integrand, dx = (T-t)/int_steps)  
+            integrand = [self.theta(z)/self.alpha*self.B(z,T) for z in np.linspace(t, T, int_steps)]
+            pt_integral = self.alpha * integrate.trapezoid(integrand, dx = (T-t)/int_steps)  
             ret = pt_simple + pt_integral
             print("Uncached A")
         return ret
