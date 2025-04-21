@@ -1,6 +1,6 @@
 '''
     To run this file set the directory to CVA_RISK_MANAGEMENT_Thesis, then use 
-    python -m Environment.generate_paths.HW
+    python -m Environment.generate_paths_HW
 '''
 
 # Math
@@ -96,16 +96,16 @@ params["j_alpha"] = 0.1 # We should expect to see about 4 jumps,
 params["gamma"] = 0.1 # With expected size mu/5
 
 # Short rate params
-params["r0"] = r0 = 2.421/100
+params["r0"] = r0 = 0.045# 2.421/100
 params["alpha"] = alpha = 0.045
 params["sigma"] = sigma = 0.007 #np.sqrt(r0)/5
 
 # Covariance
-params["rho"] = 1
+params["rho"] = 0
 
 # Number of steps and Number of Paths total
 params["N"] = N = (20-t0)*252
-N_paths = 1
+N_paths = 1e3
 
 
 ti = [6/12, 7/12, 8/12, 9/12, 15/12, 5, 30]
@@ -115,7 +115,7 @@ Pi = [np.exp(-1/100 * k * t) for k, t in zip([2.421, 2.336, 2.296, 2.241, 2.172,
 calib_data = {"ti":ti,"Pi":Pi}
 
 # Global base time grid, pre jump insertion
-t_s_base = np.linspace(t0,10,250)
+t_s_base = np.linspace(t0,20,N)
 T_s = np.arange(0,21,1)
 
 #########################################
