@@ -210,8 +210,7 @@ class Global_Cache_HW:
         key = np.round(t,3) 
         if key in self.theta_cache:
             ret = self.theta_cache[key] # Should be O(1) when this works
-            self.cache_hits = self.cache_hits + 1
-            
+            #self.cache_hits = self.cache_hits + 1
         elif startup:
             ret = (self.f0T(t+dt, startup = True)-self.f0T(t-dt, startup = True))/(2.0*dt) + self.alpha * self.f0T(t, startup = True) + self.sigma**2/(2.0*self.alpha)*(1.0-np.exp(-2.0*self.alpha*t))
             self.theta_cache[key] = ret
@@ -220,7 +219,7 @@ class Global_Cache_HW:
             self.thetas.append(ret) # Startup only runs once, but maybe a bit pricy
         else:
             ret = np.interp(t,self.theta_grid,self.thetas) # Should be worst case O(n)
-            self.interps = self.interps + 1
+            #self.interps = self.interps + 1
         return ret
     
     def A(self, t, T, stp_density = 50, startup = False):
