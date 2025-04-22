@@ -356,7 +356,12 @@ class PricingFunc_HW():
             ret = self.mu_v_cache[key]
             #self.times_mucache = self.times_mucache + 1
         else:
-            ret = r0*np.e**(-self.alpha*(T - t)) + integrate.trapezoid([(self.meta_cache.theta(z)+(self.sigma**2)*(1/self.alpha)*self.B(z,T))*np.exp(-self.alpha*(T-z)) for z in np.linspace(t, T, n_steps)],x=np.linspace(t, T, n_steps))
+            steps = [z for z in self.meta_cache.ext_time if (z >= t and z <= T)]
+            if len(steps) > n_steps:
+                slct = (len(steps) - 1) / (n_steps - 1)
+                steps = [steps[round(i * slct)] for i in range(n_steps)]
+                #print(len(steps))
+            ret = r0*np.e**(-self.alpha*(T - t)) + integrate.trapezoid([(self.meta_cache.theta(z)+(self.sigma**2)*(1/self.alpha)*self.B(z,T))*np.exp(-self.alpha*(T-z)) for z in steps],x=steps)
             self.mu_v_cache[key] = ret
             #self.times_mufresh = self.times_mufresh + 1
         return ret

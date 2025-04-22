@@ -105,7 +105,7 @@ params["rho"] = 0
 
 # Number of steps and Number of Paths total
 params["N"] = N = (20-t0)*252
-N_paths = 1e3
+N_paths = round(4)
 
 
 ti = [6/12, 7/12, 8/12, 9/12, 15/12, 5, 30]
@@ -130,7 +130,8 @@ K = gc.K
 paths = []
 
 strt = time.time()
-def process(pathN): #for i in range(0,N_paths):
+def process(pathN): #
+#for i in range(0,1):
     # Generate the market grid and basic r and lambda
     [t_s,r,lambdas,r_ongrid,lambdas_ongrid, r_sn, lamb_sn] = bg.mkt_base_from_HW_cache(gc)
     
@@ -143,8 +144,9 @@ def process(pathN): #for i in range(0,N_paths):
     CVA = [pricer.CVA(t,T_s,K) for t in t_s_base]
     #Swaps = [[pricer.swap_price(t,T_s_2,K) for t in t_s_base] for T_s_2 in [(T_s + [0])[:-i] for i in range(1,len(T_s))]]
 
+    #paths.append(Path(t_s_base, lamb_sn, r_sn, CVA, Q_s, None, Swaptions, K)) # return Path(t_s, lambdas, r, CVA, Q_s, Swaps, Swaptions))
     return Path(t_s_base, lamb_sn, r_sn, CVA, Q_s, None, Swaptions, K) # return Path(t_s, lambdas, r, CVA, Q_s, Swaps, Swaptions)
- 
+
 paths = Parallel(n_jobs = 4)(delayed(process)(pathN) for pathN in range(0,N_paths)) 
 end_time = time.time()
 

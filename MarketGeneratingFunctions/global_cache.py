@@ -140,6 +140,9 @@ class Global_Cache_HW:
         self.Khat_cache = dict()
         self.rstar_cache = dict()
       
+        self.cache_hits = 0
+        self.interps = 0
+
         # Fill the Cache 
         for t in t_s:
             # Fill theta and P0T Cache these should intuitively be done before theta but the order doesn't actually matter
@@ -148,8 +151,10 @@ class Global_Cache_HW:
 
         # Generate combined timesteps and expiry timetable, this ensures that things are found on timestep which is sometimes neesecary 
         ext_time = np.append(t_s,T_s)
+        self.ext_time = np.sort([float(t) for t in ext_time])
+
         # Fill the theta Cache, in the current implentation this *needs* to be done before A since A naively asks for interpolated thetas, this can be changed by setting startup = True in the theta call duing A startup
-        [self.theta(t, startup = True) for t in t_s]
+        [self.theta(t, startup = True) for t in self.ext_time]
         #import matplotlib.pyplot as plt
         #plt.plot(t_s, [self.theta(t)/self.alpha for t in t_s])
         #plt.plot(t_s, [self.P0T(t) for t in t_s])
@@ -158,7 +163,7 @@ class Global_Cache_HW:
         #plt.show()
 
         # Fill the A cache, this should be exhaustive as long as we only price on the standard grid and not jump added grid points
-        for t in ext_time:
+        for t in self.ext_time:
             for T in T_s:
                 # Fill the A_cache
                 self.A(t,T, startup = True)
@@ -173,7 +178,7 @@ class Global_Cache_HW:
             self.rstar(T_s[i:],self.K, startup = True)
 
         # Fill Khat Cache, this should be relatively exhaustive but I could have missed some cases
-        for t in ext_time:
+        for t in self.ext_time:
             for i in range(0,len(T_s)-1):
                 for m in T_s:
                     if m >= t:
@@ -202,35 +207,47 @@ class Global_Cache_HW:
         return ret
 
     def theta(self, t, dt = 1e-5, startup = False):
-        key = np.round(t,15) 
+        key = np.round(t,3) 
         if key in self.theta_cache:
-            ret = self.theta_cache[key]
+            ret = self.theta_cache[key] # Should be O(1) when this works
+            self.cache_hits = self.cache_hits + 1
             
         elif startup:
             ret = (self.f0T(t+dt, startup = True)-self.f0T(t-dt, startup = True))/(2.0*dt) + self.alpha * self.f0T(t, startup = True) + self.sigma**2/(2.0*self.alpha)*(1.0-np.exp(-2.0*self.alpha*t))
             self.theta_cache[key] = ret
             #l_idx = bisect(self.theta_grid, t) # Find out index to pass to insert Since startup is run in order just insert as is
             self.theta_grid.append(t)
-            self.thetas.append(ret)
+            self.thetas.append(ret) # Startup only runs once, but maybe a bit pricy
         else:
-            ret = np.interp(t,self.theta_grid,self.thetas)
+            ret = np.interp(t,self.theta_grid,self.thetas) # Should be worst case O(n)
+            self.interps = self.interps + 1
         return ret
     
     def A(self, t, T, stp_density = 50, startup = False):
-        int_steps = min(max(10,round(stp_density*(T-t))),100)
+        int_steps = min(max(10,round(stp_density*(T-t))),50)
         key = hash((np.round(t,15),float(np.round(T,15)),stp_density))
         if key in self.A_cache:
             ret = self.A_cache[key]
         elif startup:
             pt_simple = -(self.sigma**2)/(4*self.alpha**3) * (3 + np.e**(-2*self.alpha*(T-t)) - 4*np.e**(-self.alpha*(T-t)) - 2*self.alpha*(T-t))
-            integrand = [self.theta(z)*self.B(z,T) for z in np.linspace(t, T, int_steps)]
-            pt_integral =  integrate.trapezoid(integrand, x=np.linspace(t, T, int_steps))  
+            steps = [z for z in self.ext_time if (z >= t and z <= T)]
+            if len(steps) > int_steps:
+                slct = (len(steps) - 1) / (int_steps - 1)
+                steps = [steps[round(i * slct)] for i in range(int_steps)]
+                #print(len(steps))
+            integrand = [self.theta(z)*self.B(z,T) for z in steps]
+            pt_integral =  integrate.trapezoid(integrand, x = steps)  
             ret = pt_simple + pt_integral
             self.A_cache[key] = ret
         else:
             pt_simple = -(self.sigma**2)/(4*self.alpha**3) * (3 + np.e**(-2*self.alpha*(T-t)) - 4*np.e**(-self.alpha*(T-t)) - 2*self.alpha*(T-t))
-            integrand = [self.theta(z)*self.B(z,T) for z in np.linspace(t, T, int_steps)]
-            pt_integral = integrate.trapezoid(integrand, dx = (T-t)/int_steps)  
+            steps = [z for z in self.ext_time if (z >= t and z <= T)]
+            if len(steps) > int_steps:
+                slct = (len(steps) - 1) / (int_steps - 1)
+                steps = [steps[round(i * slct)] for i in range(int_steps)]
+                print(len(steps))
+            integrand = [self.theta(z)*self.B(z,T) for z in steps]
+            pt_integral =  integrate.trapezoid(integrand, x = steps)
             ret = pt_simple + pt_integral
             print("Uncached A")
         return ret
