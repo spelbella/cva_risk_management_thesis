@@ -223,14 +223,14 @@ class Global_Cache_HW:
             ret = self.A_cache[key]
         elif startup:
             pt_simple = -(self.sigma**2)/(4*self.alpha**3) * (3 + np.e**(-2*self.alpha*(T-t)) - 4*np.e**(-self.alpha*(T-t)) - 2*self.alpha*(T-t))
-            integrand = [self.theta(z)/self.alpha*self.B(z,T) for z in np.linspace(t, T, int_steps)]
-            pt_integral =  self.alpha * integrate.trapezoid(integrand, x=np.linspace(t, T, int_steps))  
+            integrand = [self.theta(z)*self.B(z,T) for z in np.linspace(t, T, int_steps)]
+            pt_integral =  integrate.trapezoid(integrand, x=np.linspace(t, T, int_steps))  
             ret = pt_simple + pt_integral
             self.A_cache[key] = ret
         else:
             pt_simple = -(self.sigma**2)/(4*self.alpha**3) * (3 + np.e**(-2*self.alpha*(T-t)) - 4*np.e**(-self.alpha*(T-t)) - 2*self.alpha*(T-t))
-            integrand = [self.theta(z)/self.alpha*self.B(z,T) for z in np.linspace(t, T, int_steps)]
-            pt_integral = self.alpha * integrate.trapezoid(integrand, dx = (T-t)/int_steps)  
+            integrand = [self.theta(z)*self.B(z,T) for z in np.linspace(t, T, int_steps)]
+            pt_integral = integrate.trapezoid(integrand, dx = (T-t)/int_steps)  
             ret = pt_simple + pt_integral
             print("Uncached A")
         return ret
