@@ -13,3 +13,5 @@ PPO/ZeroCorrSnd1Half
 PPO/ZeroCorrSnd2Half
 ZeroCorrFrs1Half
 ZeroCorrFrs2Half
+PPO/TrainLog.monitor.csv
+PPO/PPOs.zip
