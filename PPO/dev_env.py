@@ -14,7 +14,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 from MarketGeneratingFunctions import DeltaHedge
 
 class tradingEng(gym.Env):
-    def __init__(self, paths, action = 'small-More-Trust', obs = 'big', reward = 'L1', rewardscale = 1, huberBeta = 0.1):
+    def __init__(self, paths, action = 'small-More-Trust', obs = 'big', reward = 'L1', rewardscale = 1, huberBeta = 0.1, resetdate = 5.0):
         # The paths
         self.paths = paths.copy()
         random.shuffle(self.paths)
@@ -23,6 +23,8 @@ class tradingEng(gym.Env):
         self.pthIDX = 0
         self.currpth =  paths[self.pthIDX]
         self.npths = len(paths)
+
+        self.resetDate = resetdate
 
         # The action and obs space
         self.action = action
@@ -145,7 +147,7 @@ class tradingEng(gym.Env):
                     np.tanh(np.log((self.currpth.lambdas[self.tIDX] - 0.001)+1)) if self.currpth.lambdas[self.tIDX] != -0.999 else -1,
                     np.tanh(self.currpth.r[self.tIDX]),
                     # Different TIme Norm
-                    self.currpth.t_s[self.tIDX]/5 - 1,
+                    self.currpth.t_s[self.tIDX]/10 - 1,
                     #np.tanh(np.log(self.currpth.t_s[self.tIDX])) if self.currpth.t_s[self.tIDX] != 0 else -1
                 ])
             case 'auto': # Transformed Observations work best!, Need to test not transforming t or doing a different transform since time goes 0 to 10, maybe just divide by 5 - 1??
@@ -196,7 +198,7 @@ class tradingEng(gym.Env):
     def reset(self, seed = None, options = None):
         self.tIDX = 0
         self.pthIDX = self.pthIDX + 1
-        if self.pthIDX >= 125:
+        if self.pthIDX >= len(self.paths)-1:
             self.pthIDX = 0
             random.shuffle(self.paths)
         self.currpth = self.paths[self.pthIDX]
@@ -284,7 +286,7 @@ class tradingEng(gym.Env):
         #print(reward)
 
         # End the environment after we reach year 9
-        terminated = self.currpth.t_s[self.tIDX] > 5
+        terminated = self.currpth.t_s[self.tIDX + 1] > self.resetDate 
         truncated = False
 
         if terminated:

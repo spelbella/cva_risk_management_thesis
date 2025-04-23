@@ -105,7 +105,7 @@ params["rho"] = 0
 
 # Number of steps and Number of Paths total
 params["N"] = N = (20-t0)*252
-N_paths = round(12)
+N_paths = round(100)
 
 
 ti = [6/12, 7/12, 8/12, 9/12, 15/12, 5, 30]
@@ -153,9 +153,8 @@ end_time = time.time()
 print("Total Time: %s" %(end_time - strt))
 print("Average Time Per Path: %s" %((end_time - strt)/N_paths))
 
-with open("10-10-20HWRunDemo.pkl","wb") as fp:
-    pickle.dump(paths,fp)
-
+with open("ZeroCorrTest","wb") as fp:
+    pickle.dump(paths,fp, protocol = -1)
 
 
 #print("Cache Lineup _----------------------_")
