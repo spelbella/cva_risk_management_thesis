@@ -227,18 +227,20 @@ class tradingEng(gym.Env):
 
     def reward(self, diff, trCostTot = 0):
         match self.rewardf:
-            case 'L1':
+            case '1a':
                 reward = (-1)* np.abs(diff) * self.reward_scale
-            case 'L2':
+            case '2a':
                 reward = -(diff**2 * self.reward_scale)
+            case '1b':
+                reward = (-1)* np.abs(diff) * self.reward_scale - trCostTot
+            case '2b':
+                reward = -(diff**2 * self.reward_scale) - trCostTot
             case 'Huber':
                 reward = -(int(diff >= self.Huber)*(1/2)*diff**2 + int(diff < self.Huber)*self.Huber*(np.abs(diff) - 1/2*self.Huber)) * self.reward_scale
             case 'PnL':
                 reward = diff
             case '(Pnl)-':
                 reward = np.min([diff,0.0]) 
-            case '1a':
-                reward = (-1)* np.abs(diff) * self.reward_scale - trCostTot
             case _:
                 reward = 0.0
         return reward
@@ -291,7 +293,7 @@ class tradingEng(gym.Env):
         cost = self.posValue()
         oCVA = self.currpth.CVA[self.tIDX]
 
-        if self.reward == '1a':
+        if self.reward == '1b' | self.reward == '2b':
             trCostSwpt = np.inner(np.abs(SwptPos["Swaption Position"]-oldSwptPos["Swaption Position"]),self.swaptions_now())
             trCostQ = np.inner(np.abs(SwptPos["Q Position"]-oldSwptPos["Q Position"]),self.Q_now())
             trCostTot = (trCostSwpt + trCostQ)*0.02
