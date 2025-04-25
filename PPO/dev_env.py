@@ -14,7 +14,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 from MarketGeneratingFunctions import DeltaHedge
 
 class tradingEng(gym.Env):
-    def __init__(self, paths, action = 'small-More-Trust', obs = 'big', reward = 'L1', rewardscale = 1, huberBeta = 0.1, resetdate = 5.0):
+    def __init__(self, paths, action = 'small-More-Trust', obs = 'big', reward = 'L1', rewardscale = 1, huberBeta = 0.1, resetdate = 5.0, trcost = False):
         # The paths
         self.paths = paths.copy()
         random.shuffle(self.paths)
@@ -225,7 +225,7 @@ class tradingEng(gym.Env):
         Qs = action[20:40]
         return dict({"Swaption Position" : swapts, "Q Position" : Qs})
 
-    def reward(self, diff):
+    def reward(self, diff, trCostTot = 0):
         match self.rewardf:
             case 'L1':
                 reward = (-1)* np.abs(diff) * self.reward_scale
@@ -237,6 +237,8 @@ class tradingEng(gym.Env):
                 reward = diff
             case '(Pnl)-':
                 reward = np.min([diff,0.0]) 
+            case '1a':
+                reward = (-1)* np.abs(diff) * self.reward_scale - trCostTot
             case _:
                 reward = 0.0
         return reward
@@ -277,12 +279,23 @@ class tradingEng(gym.Env):
         if not isinstance(actionl, dict):
             actionl = self.vec_to_dict(actionl)
         
+        oldSwptPos = self._agent_position.copy()
+            
         # Set the new state
         self._agent_position = actionl
+
+        SwptPos = self._agent_position.copy()
+        trCostTot = 0
 
         # Find Cost of Hedge and old CVA
         cost = self.posValue()
         oCVA = self.currpth.CVA[self.tIDX]
+
+        if self.reward == '1a':
+            trCostSwpt = np.inner(np.abs(SwptPos["Swaption Position"]-oldSwptPos["Swaption Position"]),self.swaptions_now())
+            trCostQ = np.inner(np.abs(SwptPos["Q Position"]-oldSwptPos["Q Position"]),self.Q_now())
+            trCostTot = (trCostSwpt + trCostQ)*0.02
+            print(trCostTot)
 
         # Step Time forward
         self.tIDX = self.tIDX + 1     
@@ -298,7 +311,8 @@ class tradingEng(gym.Env):
         #print(diff)
         
         # Since the diff is unbounded posdef we can take a log transform and a tanh to map to -1 to 1
-        reward = self.reward(diff)
+
+        reward = self.reward(diff, trCostTot)
 
         info = self._get_info()
         observation = self._get_obs()
