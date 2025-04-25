@@ -263,16 +263,16 @@ class tradingEng(gym.Env):
                 Swapts = self.swaptions_now()
                 [SwapsHedge,Qhedge] = DeltaHedge.delta_hedge(Swapts,Q,np.arange(0,21),self.currpth.t_s[self.tIDX])
                 Qhedge = Qhedge[1:]
-                SwapsHedge = SwapsHedge*self.actionl[2] + actionl[0]*10
-                Qhedge = Qhedge*self.actionl[2] + actionl[1]*10
+                SwapsHedge = SwapsHedge*(actionl[2] + 1) + actionl[0]
+                Qhedge = Qhedge*(actionl[2] + 1) + actionl[1]
                 actionl = np.concatenate([SwapsHedge,Qhedge])
             case 'big-Magnus':
                 Q = [1.0] + self.Q_now()
                 Swapts = self.swaptions_now()
                 [SwapsHedge,Qhedge] = DeltaHedge.delta_hedge(Swapts,Q,np.arange(0,21),self.currpth.t_s[self.tIDX])
                 Qhedge = Qhedge[1:]
-                SwapsHedge = [SwapsHedge[i]*self.actionl[2] + actionl[i] for i in range(0,20)]
-                Qhedge = [Qhedge[i]*self.actionl[2] + actionl[i] for i in range(20,40)]
+                SwapsHedge = [SwapsHedge[i]*(actionl[40] + 1) + actionl[i]*np.max(SwapsHedge) for i in range(0,20)]
+                Qhedge = [Qhedge[i-20]*(actionl[40] + 1) + actionl[i]**np.max(Qhedge) for i in range(20,40)]
                 actionl = np.concatenate([SwapsHedge,Qhedge])
         if not isinstance(actionl, dict):
             actionl = self.vec_to_dict(actionl)
