@@ -39,3 +39,17 @@ Autoenconder/ZeroCorrSnd2Half
 PPO/logs/best_modelBigAct/best_model.zip
 PPO/logs/eval_logsBigAct/evaluations.npz
 PPO/logs/eval_logsBigObs/evaluations.npz
+PPO/logs/best_model/best_model.zip
+PPO/logs/best_model1/best_model.zip
+PPO/logs/best_model20/best_model.zip
+PPO/logs/best_modelBigObs/best_model.zip
+PPO/logs/best_modelEnt/best_model.zip
+PPO/logs/best_modelL2/best_model.zip
+PPO/logs/eval_logs/ev/evaluations.npz
+PPO/logs/eval_logs/evEnt/evaluations.npz
+PPO/logs/eval_logs1/ev/evaluations.npz
+PPO/logs/eval_logs20/ev/evaluations.npz
+PPO/logs/eval_logsBigO/ev/evaluations.npz
+PPO/logs/eval_logsL2/evaluations.npz
+PPO/logs-TrainEnt.monitor.csv
+PPO/n0.7CorrTest.pkl

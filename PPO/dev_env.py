@@ -14,7 +14,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 from MarketGeneratingFunctions import DeltaHedge
 
 class tradingEng(gym.Env):
-    def __init__(self, paths, action = 'small-More-Trust', obs = 'big', reward = 'L1', rewardscale = 1, huberBeta = 0.1, resetdate = 5.0, trcost = False):
+    def __init__(self, paths, action = 'small-More-Trust', obs = 'big', reward = '1a', rewardscale = 1, huberBeta = 0.1, resetdate = 5.0, trcost = False):
         # The paths
         self.paths = paths.copy()
         random.shuffle(self.paths)
@@ -293,7 +293,7 @@ class tradingEng(gym.Env):
         cost = self.posValue()
         oCVA = self.currpth.CVA[self.tIDX]
 
-        if self.reward == '1b' | self.reward == '2b':
+        if False: #self.reward == '1b' | self.reward == '2b':
             trCostSwpt = np.inner(np.abs(SwptPos["Swaption Position"]-oldSwptPos["Swaption Position"]),self.swaptions_now())
             trCostQ = np.inner(np.abs(SwptPos["Q Position"]-oldSwptPos["Q Position"]),self.Q_now())
             trCostTot = (trCostSwpt + trCostQ)*0.02
