@@ -14,7 +14,7 @@ os.environ["KMP_DUPLICATE_LIB_OK"]="TRUE"
 from MarketGeneratingFunctions import DeltaHedge
 
 class tradingEng(gym.Env):
-    def __init__(self, paths, action = 'small-More-Trust', obs = 'big', reward = 'L1', rewardscale = 1, huberBeta = 0.1, resetdate = 5.0):
+    def __init__(self, paths, action = 'small-More-Trust', obs = 'big', reward = 'L1', rewardscale = 1, huberBeta = 0.1, resetdate = 5.0, trcost = False):
         # The paths
         self.paths = paths.copy()
         random.shuffle(self.paths)
@@ -225,12 +225,16 @@ class tradingEng(gym.Env):
         Qs = action[20:40]
         return dict({"Swaption Position" : swapts, "Q Position" : Qs})
 
-    def reward(self, diff):
+    def reward(self, diff, trCostTot = 0):
         match self.rewardf:
-            case 'L1':
+            case '1a':
                 reward = (-1)* np.abs(diff) * self.reward_scale
-            case 'L2':
+            case '2a':
                 reward = -(diff**2 * self.reward_scale)
+            case '1b':
+                reward = (-1)* np.abs(diff) * self.reward_scale - trCostTot
+            case '2b':
+                reward = -(diff**2 * self.reward_scale) - trCostTot
             case 'Huber':
                 reward = -(int(diff >= self.Huber)*(1/2)*diff**2 + int(diff < self.Huber)*self.Huber*(np.abs(diff) - 1/2*self.Huber)) * self.reward_scale
             case 'PnL':
@@ -277,12 +281,23 @@ class tradingEng(gym.Env):
         if not isinstance(actionl, dict):
             actionl = self.vec_to_dict(actionl)
         
+        oldSwptPos = self._agent_position.copy()
+            
         # Set the new state
         self._agent_position = actionl
+
+        SwptPos = self._agent_position.copy()
+        trCostTot = 0
 
         # Find Cost of Hedge and old CVA
         cost = self.posValue()
         oCVA = self.currpth.CVA[self.tIDX]
+
+        if self.reward == '1b' | self.reward == '2b':
+            trCostSwpt = np.inner(np.abs(SwptPos["Swaption Position"]-oldSwptPos["Swaption Position"]),self.swaptions_now())
+            trCostQ = np.inner(np.abs(SwptPos["Q Position"]-oldSwptPos["Q Position"]),self.Q_now())
+            trCostTot = (trCostSwpt + trCostQ)*0.02
+            print(trCostTot)
 
         # Step Time forward
         self.tIDX = self.tIDX + 1     
@@ -298,7 +313,8 @@ class tradingEng(gym.Env):
         #print(diff)
         
         # Since the diff is unbounded posdef we can take a log transform and a tanh to map to -1 to 1
-        reward = self.reward(diff)
+
+        reward = self.reward(diff, trCostTot)
 
         info = self._get_info()
         observation = self._get_obs()
