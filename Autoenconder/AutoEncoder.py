@@ -2,8 +2,8 @@ import numpy as np
 import torch as th
 
 class MarketAutoencoder(th.nn.Module):
-    def __init__(self):
-        self.dim = 40
+    def __init__(self, dim = 40):
+        self.dim = dim
         self.compress = 3
         self.learning_rate = 1e-4
         super().__init__()
@@ -17,9 +17,7 @@ class MarketAutoencoder(th.nn.Module):
         self.encoder = th.nn.Sequential(    # Probably way overkill
             th.nn.Linear(self.dim, self.dim),
             th.nn.LeakyReLU(),
-            th.nn.Linear(self.dim, self.dim*2),
-            th.nn.LeakyReLU(),
-            th.nn.Linear(self.dim*2, 36),
+            th.nn.Linear(self.dim, 36),
             th.nn.LeakyReLU(),
             th.nn.Linear(36,18),
             th.nn.LeakyReLU(),
@@ -28,9 +26,9 @@ class MarketAutoencoder(th.nn.Module):
             th.nn.Linear(15, 12),
             th.nn.LeakyReLU(),
             th.nn.Linear(12, 9),
-            th.nn.Tanh(),
+            th.nn.LeakyReLU(),
             th.nn.Linear(9,self.compress),
-            th.nn.Tanh()
+            th.nn.LeakyReLU()
         )
 
         self.decoder = th.nn.Sequential(    # Probably way overkill
@@ -44,9 +42,7 @@ class MarketAutoencoder(th.nn.Module):
             th.nn.LeakyReLU(),
             th.nn.Linear(18, 36),
             th.nn.LeakyReLU(),
-            th.nn.Linear(36, self.dim*2),
-            th.nn.LeakyReLU(),
-            th.nn.Linear(self.dim*2, self.dim),
+            th.nn.Linear(36, self.dim),
             th.nn.LeakyReLU(),
             th.nn.Linear(self.dim,self.dim),
             th.nn.LeakyReLU()
@@ -87,7 +83,7 @@ class MarketAutoencoder(th.nn.Module):
         running_loss = 0
         optimizer = th.optim.Adam(self.parameters(), lr = 0.0025)
         
-        n_epochs = 500
+        n_epochs = 200
         for epoch in range(0,n_epochs):
             optimizer.param_groups[0]['lr'] = optimizer.param_groups[0]['lr'] - 0.0025*(1/n_epochs)
             for i, data in enumerate(training_loader):
