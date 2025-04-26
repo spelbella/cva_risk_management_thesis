@@ -36,3 +36,6 @@ smTxs1tyrLearnCropped.png
 PPO/TrainLog.monitor.csv
 Autoenconder/ZeroCorrSnd1Half
 Autoenconder/ZeroCorrSnd2Half
+PPO/logs/best_modelBigAct/best_model.zip
+PPO/logs/eval_logsBigAct/evaluations.npz
+PPO/logs/eval_logsBigObs/evaluations.npz
