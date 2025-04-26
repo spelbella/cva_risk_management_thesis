@@ -15,7 +15,7 @@ class MarketAutoencoder(th.nn.Module):
         
     def setup(self):
         self.encoder = th.nn.Sequential(    # Probably way overkill
-            th.nn.Linear(self.dim, 18),
+            th.nn.Linear(self.dim, self.dim),
             th.nn.LeakyReLU(),
             th.nn.Linear(18, 36),
             th.nn.LeakyReLU(),
@@ -42,9 +42,9 @@ class MarketAutoencoder(th.nn.Module):
             th.nn.LeakyReLU(),
             th.nn.Linear(18, 36),
             th.nn.LeakyReLU(),
-            th.nn.Linear(36, 18),
+            th.nn.Linear(36, self.dim),
             th.nn.LeakyReLU(),
-            th.nn.Linear(18,18),
+            th.nn.Linear(self.dim,self.dim),
             th.nn.LeakyReLU()
         )
     
