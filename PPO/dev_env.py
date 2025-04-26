@@ -305,7 +305,10 @@ class tradingEng(gym.Env):
         #print(reward)
 
         # End the environment after we reach year 9
-        terminated = self.currpth.t_s[self.tIDX + 1] > self.resetDate 
+        try:
+            terminated = self.currpth.t_s[self.tIDX + 1] > self.resetDate
+        except:
+            terminated = True
         truncated = False
 
         if terminated:
