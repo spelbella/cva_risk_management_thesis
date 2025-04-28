@@ -7,6 +7,14 @@ MarketGeneratingFunctions/10-10-20HWRunDemo.pkl
 MarketGeneratingFunctions/100-10-30HWRunDemo.pkl
 10-10-20HWRunDemo.pkl
 100-10-30HWRunDemo.pkl
+Autoenconder/ZeroCorrFrs1Half
+Autoenconder/ZeroCorrFrs2Half
+Autoenconder/ZeroCorrSnd1Half
+Autoenconder/ZeroCorrSnd2Half
+PPO/ZeroCorrFrs1Half
+PPO/ZeroCorrFrs2Half
+PPO/ZeroCorrSnd1Half
+PPO/ZeroCorrSnd2Half
 PPO/ZeroCorrFrs1Half
 PPO/ZeroCorrFrs2Half
 PPO/ZeroCorrSnd1Half
