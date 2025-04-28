@@ -2,8 +2,8 @@ import numpy as np
 import torch as th
 
 class MarketAutoencoder(th.nn.Module):
-    def __init__(self):
-        self.dim = 18
+    def __init__(self, dim = 40):
+        self.dim = dim
         self.compress = 3
         self.learning_rate = 1e-4
         super().__init__()
@@ -15,9 +15,9 @@ class MarketAutoencoder(th.nn.Module):
         
     def setup(self):
         self.encoder = th.nn.Sequential(    # Probably way overkill
-            th.nn.Linear(self.dim, 18),
+            th.nn.Linear(self.dim, self.dim),
             th.nn.LeakyReLU(),
-            th.nn.Linear(18, 36),
+            th.nn.Linear(self.dim, 36),
             th.nn.LeakyReLU(),
             th.nn.Linear(36,18),
             th.nn.LeakyReLU(),
@@ -42,9 +42,9 @@ class MarketAutoencoder(th.nn.Module):
             th.nn.LeakyReLU(),
             th.nn.Linear(18, 36),
             th.nn.LeakyReLU(),
-            th.nn.Linear(36, 18),
+            th.nn.Linear(36, self.dim),
             th.nn.LeakyReLU(),
-            th.nn.Linear(18,18),
+            th.nn.Linear(self.dim,self.dim),
             th.nn.LeakyReLU()
         )
     
@@ -55,14 +55,14 @@ class MarketAutoencoder(th.nn.Module):
         return x
     
     def preprocess(self, sample):
-        sample[0:9] = np.log(sample[0:9] + 0.01)
-        sample[9:] = sample[9:]*2 - 1
+        sample[0:20] = np.log(sample[0:20] + 0.01)
+        sample[20:] = sample[20:]*2 - 1
         return sample
         
     def deprocess(self,sample):
         sample.detach().numpy()
-        sample[0:9] = np.exp(sample[0:9]) - 0.01
-        sample[9:] = (sample[9:] + 1)/2
+        sample[0:20] = np.exp(sample[0:20]) - 0.01
+        sample[20:] = (sample[20:] + 1)/2
         return sample
     
     def train(self, inputPaths):
@@ -72,8 +72,8 @@ class MarketAutoencoder(th.nn.Module):
         for path in inputPaths:
             for t in range(len(path.t_s)):
                 if path.t_s[t] < 5:
-                    Swaptions = [path.Swaptions[i][t] for i in range(1,10)]
-                    Q_s = [path.Q_s[i][t] for i in range(1,10)]
+                    Swaptions = [0.0] + [path.Swaptions[i][t] for i in range(0,19)]
+                    Q_s = [path.Q_s[i][t] for i in range(1,21)]
                     sample = np.concat([Swaptions,Q_s])
                     sample = self.preprocess(sample)
                     deGroupedSamples.append(sample)
@@ -110,3 +110,11 @@ class MarketAutoencoder(th.nn.Module):
                     last_loss = running_loss/(i%2000 + 1) 
                     print('Epoch{}, Batch {} loss: {}'.format(epoch+1,i+1,last_loss))
                     running_loss = 0
+
+    # Right now unused but in future case if you regenerate autoencoder using this in the dev_env instead of forward ?might? be faster
+    @th.no_grad
+    def compress(self,sample):
+        sample = sample.copy()
+        sample = self.preprocess(sample)
+        z = self.encoder(sample)
+        return z

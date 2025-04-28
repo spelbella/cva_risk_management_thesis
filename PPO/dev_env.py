@@ -71,8 +71,8 @@ class tradingEng(gym.Env):
                 upper = np.asarray([1, 1, 1])
                 self.observation_space = gym.spaces.Box(low = lower,high = upper, dtype=float)
             case 'auto':
-                # Autoencoder based information
-                import AutoEncoder
+                # Autoencoder based information, gives 3 dim out
+                from AutoEncoder import MarketAutoencoder 
                 import pickle
                 with open("autoencoderT","rb") as fp:
                     self.encoder = pickle.load(fp)
@@ -244,15 +244,33 @@ class tradingEng(gym.Env):
         
         match self.action:
             case 'big':
-                pass
+                actionl = actionl*0.1
             case 'small':
                 swpt = actionl[0]
                 Q = actionl[1]
                 actionl = np.concatenate([np.zeros(8), [swpt], np.zeros(8), [Q]])
             case 'small-More-Trust':
-                swpt = actionl[0]*10
-                Q = actionl[1]*10
-                actionl = np.concatenate([np.zeros(8), [swpt], np.zeros(8), [Q]])
+                swpt = actionl[0]*2
+                Q = actionl[1]*2
+                actionl = np.concatenate([np.zeros(19), [swpt], np.zeros(19), [Q]])
+            case 'small-Magnus':
+                Q = [1.0] + self.Q_now()
+                Swapts = self.swaptions_now()
+                [SwapsHedge,Qhedge] = DeltaHedge.delta_hedge(Swapts,Q,np.arange(0,21),self.currpth.t_s[self.tIDX])
+                Qhedge = Qhedge[1:]
+                SwapsHedge = SwapsHedge*(actionl[2] + 1)
+                SwapsHedge[-1] = SwapsHedge[-1] + actionl[0]
+                Qhedge = Qhedge*(actionl[2] + 1)
+                Qhedge[-1] = Qhedge[-1] + actionl[1]
+                actionl = np.concatenate([SwapsHedge,Qhedge])
+            case 'big-Magnus':
+                Q = [1.0] + self.Q_now()
+                Swapts = self.swaptions_now()
+                [SwapsHedge,Qhedge] = DeltaHedge.delta_hedge(Swapts,Q,np.arange(0,21),self.currpth.t_s[self.tIDX])
+                Qhedge = Qhedge[1:]
+                SwapsHedge = [SwapsHedge[i]*(actionl[40] + 1) + actionl[i]*0.1 for i in range(0,20)]
+                Qhedge = [Qhedge[i-20]*(actionl[40] + 1) + actionl[i]*0.1 for i in range(20,40)]
+                actionl = np.concatenate([SwapsHedge,Qhedge])
         if not isinstance(actionl, dict):
             actionl = self.vec_to_dict(actionl)
         
@@ -288,6 +306,7 @@ class tradingEng(gym.Env):
         truncated = False
 
         if terminated:
+            #print(self.currpth.t_s[self.tIDX])
             self.reset()
 
         return observation, reward, terminated, truncated, info
