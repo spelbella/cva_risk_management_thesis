@@ -253,22 +253,24 @@ class tradingEng(gym.Env):
         
         match self.action:
             case 'big':
-                pass
+                actionl = actionl*0.1
             case 'small':
                 swpt = actionl[0]
                 Q = actionl[1]
                 actionl = np.concatenate([np.zeros(19), [swpt], np.zeros(19), [Q]])
             case 'small-More-Trust':
-                swpt = actionl[0]*10
-                Q = actionl[1]*10
+                swpt = actionl[0]*2
+                Q = actionl[1]*2
                 actionl = np.concatenate([np.zeros(19), [swpt], np.zeros(19), [Q]])
             case 'small-Magnus':
                 Q = [1.0] + self.Q_now()
                 Swapts = self.swaptions_now()
                 [SwapsHedge,Qhedge] = DeltaHedge.delta_hedge(Swapts,Q,np.arange(0,21),self.currpth.t_s[self.tIDX])
                 Qhedge = Qhedge[1:]
-                SwapsHedge = SwapsHedge*(actionl[2] + 1) + actionl[0]
-                Qhedge = Qhedge*(actionl[2] + 1) + actionl[1]
+                SwapsHedge = SwapsHedge*(actionl[2] + 1)
+                SwapsHedge[-1] = SwapsHedge[-1] + actionl[0]
+                Qhedge = Qhedge*(actionl[2] + 1)
+                Qhedge[-1] = Qhedge[-1] + actionl[1]
                 actionl = np.concatenate([SwapsHedge,Qhedge])
             case 'big-Magnus':
                 Q = [1.0] + self.Q_now()
