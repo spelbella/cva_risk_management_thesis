@@ -53,3 +53,14 @@ PPO/logs/eval_logsBigO/ev/evaluations.npz
 PPO/logs/eval_logsL2/evaluations.npz
 PPO/logs-TrainEnt.monitor.csv
 PPO/n0.7CorrTest.pkl
+PPO/logs/eval_logs/evaluations.npz
+PPO/logs/eval_logs/evBig2Big/evaluations.npz
+PPO/logs/eval_logs/evLLRB/evaluations.npz
+PPO/logs/eval_logs/xsbig/evaluations.npz
+PPO/logs/models/xsbig/best_model.zip
+PPO/logsBig2Big.monitor.csv
+PPO/logsBigBMagnus.monitor.csv
+PPO/logsBigMagnus.monitor.csv
+PPO/logsBigTrunc.monitor.csv
+PPO/logsxsbig.monitor.csv
+PPO/ModelLLRB.zip

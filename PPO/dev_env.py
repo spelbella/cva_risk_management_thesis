@@ -295,6 +295,9 @@ class tradingEng(gym.Env):
         cost = self.posValue()
         oCVA = self.currpth.CVA[self.tIDX]
 
+        '''
+            Disabled transaction costs, re-enable
+        '''
         if False: #self.reward == '1b' | self.reward == '2b':
             trCostSwpt = np.inner(np.abs(SwptPos["Swaption Position"]-oldSwptPos["Swaption Position"]),self.swaptions_now())
             trCostQ = np.inner(np.abs(SwptPos["Q Position"]-oldSwptPos["Q Position"]),self.Q_now())
