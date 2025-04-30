@@ -71,3 +71,11 @@ PPO/logsBigObs-train.monitor.csv
 PPO/logsBigA-Train.monitor.csv
 PPO/eval_logs-Train.monitor.csv
 PPO/logs/best_modelB/best_model.zip
+PPO/logs/eval_logs/bigbig/evaluations.npz
+PPO/logs/eval_logs/bigbig30/evaluations.npz
+PPO/logs/models/bigbig_final.zip
+PPO/logs/models/bigbig_final30.zip
+PPO/logs/models/bigbig_best/best_model.zip
+PPO/logs/models/bigbig_best30/best_model.zip
+PPO/logs-bigbig.monitor.csv
+PPO/logs-bigbig30.monitor.csv
