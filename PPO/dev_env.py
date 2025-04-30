@@ -298,11 +298,10 @@ class tradingEng(gym.Env):
         '''
             Disabled transaction costs, re-enable
         '''
-        if False: #self.reward == '1b' | self.reward == '2b':
+        if self.rewardf == '1b' or self.rewardf == '2b':
             trCostSwpt = np.inner(np.abs(SwptPos["Swaption Position"]-oldSwptPos["Swaption Position"]),self.swaptions_now())
             trCostQ = np.inner(np.abs(SwptPos["Q Position"]-oldSwptPos["Q Position"]),self.Q_now())
             trCostTot = (trCostSwpt + trCostQ)*0.02
-            print(trCostTot)
 
         # Step Time forward
         self.tIDX = self.tIDX + 1     
@@ -315,7 +314,6 @@ class tradingEng(gym.Env):
         dHedge = nCVA - oCVA
         dCVA = value - cost
         diff = dHedge - dCVA
-        #print(diff)
         
         # Since the diff is unbounded posdef we can take a log transform and a tanh to map to -1 to 1
 
@@ -323,7 +321,6 @@ class tradingEng(gym.Env):
 
         info = self._get_info()
         observation = self._get_obs()
-        #print(reward)
 
         # End the environment after we reach year 9
         try:
