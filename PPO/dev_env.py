@@ -277,8 +277,8 @@ class tradingEng(gym.Env):
                 Swapts = self.swaptions_now()
                 [SwapsHedge,Qhedge] = DeltaHedge.delta_hedge(Swapts,Q,np.arange(0,21),self.currpth.t_s[self.tIDX])
                 Qhedge = Qhedge[1:]
-                SwapsHedge = [SwapsHedge[i]*(actionl[40] + 1) + actionl[i]*np.max(SwapsHedge) for i in range(0,20)]
-                Qhedge = [Qhedge[i-20]*(actionl[40] + 1) + actionl[i]**np.max(Qhedge) for i in range(20,40)]
+                SwapsHedge = [SwapsHedge[i]*(actionl[40] + 1) + actionl[i]*0.1 for i in range(0,20)]
+                Qhedge = [Qhedge[i-20]*(actionl[40] + 1) + actionl[i]*0.1 for i in range(20,40)]
                 actionl = np.concatenate([SwapsHedge,Qhedge])
         if not isinstance(actionl, dict):
             actionl = self.vec_to_dict(actionl)
