@@ -111,3 +111,11 @@ PPO/Results/xsBig/evaluations.npz
 PPO/Results/xsBig/logs-xsbig.monitor.csv
 PPO/Results/xsBig/xsbig_final.zip
 PPO/logs-trcost.monitor.csv
+PPO/logs-trcoste7.monitor.csv
+PPO/logs-trcoste72.monitor.csv
+Failed Convergence Transaction Costs.png
+PPO/logs/eval_logs/trcoste7/evaluations.npz
+PPO/logs/eval_logs/trcoste72/evaluations.npz
+PPO/logs/models/trcoste7final.zip
+PPO/logs/models/trcoste7/best_model.zip
+PPO/logs/models/trcoste72/best_model.zip
